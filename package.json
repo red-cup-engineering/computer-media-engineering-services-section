@@ -1,0 +1,15 @@
+{
+  "name": "@red-cup-engineering/computer-media-engineering-services-section",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Service boundary for representing, transforming, and observing computer media content.",
+  "keywords": [
+    "digital-media",
+    "media-processing",
+    "multimedia"
+  ],
+  "exports": {
+    "./raster": "./src/raster.mjs",
+    "./audio": "./src/audio.mjs"
+  }
+}
