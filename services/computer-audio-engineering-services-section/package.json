@@ -34,10 +34,19 @@
     "audio-engine": "./apps/audio-engine/src/cli.mjs"
   },
   "dependencies": {
-    "@red-cup-engineering/computer-file-engineering-services-section": "workspace:*"
+    "@red-cup-engineering/computer-file-engineering-services-section": "0.4.0"
   },
   "scripts": {
     "check": "for f in $(find src scripts apps -name '*.mjs'); do node --check \"$f\" || exit 1; done; echo 'all .mjs files parse cleanly'",
     "test": "node --test 'test/**/*.test.mjs' 'apps/**/*.test.mjs'"
-  }
+  },
+  "private": false,
+  "files": [
+    "package.json",
+    "README*",
+    "LICENSE*",
+    "apps",
+    "scripts",
+    "src"
+  ]
 }

@@ -1,6 +1,6 @@
 {
   "name": "@red-cup-engineering/voice-audio-services-section",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Service boundary for speech-bearing audio and operations specialized to human voice.",
   "exports": {
@@ -18,7 +18,14 @@
     "check": "node --check src/audiobook-edition.mjs && node --check src/audioplay-model.mjs"
   },
   "dependencies": {
-    "@red-cup-engineering/json-services-section": "workspace:*",
-    "@red-cup-engineering/uri-services-section": "workspace:*"
-  }
+    "@red-cup-engineering/json-services-section": "0.4.0",
+    "@red-cup-engineering/uri-services-section": "0.1.1"
+  },
+  "private": false,
+  "files": [
+    "package.json",
+    "README*",
+    "LICENSE*",
+    "src"
+  ]
 }
