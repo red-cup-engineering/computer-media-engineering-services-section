@@ -3,6 +3,11 @@
   "version": "0.2.0",
   "type": "module",
   "description": "Service boundary for representing, transforming, and observing digital audio: a pure, no-I/O DSP core (oscillators, envelopes, filters, delay, Karplus-Strong, formant/bow-breath synthesis, mixing, saturation, reverb, WAV encode/decode), exact-rational arithmetic for ratio-and-duration math, read-only pitch/envelope analysis of rendered buffers, and thin disk-effect scripts over @red-cup-engineering/computer-file-engineering-services-section for callers that do want a file. Domain specializations (music composition, game audio) depend on this rather than owning their own copies.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/red-cup-engineering/computer-content-engineering-services-section.git",
+    "directory": "services/computer-media-engineering-services-section/services/computer-audio-engineering-services-section"
+  },
   "keywords": [
     "audio",
     "audio-processing",
