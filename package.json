@@ -11,5 +11,9 @@
   "exports": {
     "./raster": "./src/raster.mjs",
     "./audio": "./src/audio.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/red-cup-engineering/computer-media-engineering-services-section.git"
   }
 }
