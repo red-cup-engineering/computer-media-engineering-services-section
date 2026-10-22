@@ -1,6 +1,6 @@
 {
   "name": "@red-cup-engineering/computer-media-engineering-services-section",
-  "version": "0.1.0",
+  "version": "0.2.0-dev.0",
   "type": "module",
   "description": "Service boundary for representing, transforming, and observing computer media content.",
   "keywords": [
@@ -10,7 +10,8 @@
   ],
   "exports": {
     "./raster": "./src/raster.mjs",
-    "./audio": "./src/audio.mjs"
+    "./audio": "./src/audio.mjs",
+    "./otio-render": "./src/otio-render.mjs"
   },
   "repository": {
     "type": "git",
@@ -20,5 +21,11 @@
   "funding": {
     "type": "individual",
     "url": "https://github.com/561-group/.github/blob/main/TIPS.md"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
