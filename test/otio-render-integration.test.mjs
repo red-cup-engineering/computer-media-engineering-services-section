@@ -41,4 +41,12 @@ test('actual input video is decoded, cut and reassembled in native OTIO order',a
  assert.equal(receipt.clipCount,3);
  assert.ok(Math.abs(receipt.outputDurationSeconds-1.6)<.18);
  assert.equal(receipt.outputVideoNi,digest(output));
+ const pixelAt=at=>[...execFileSync('ffmpeg',[
+  '-hide_banner','-loglevel','error','-ss',String(at),'-i',output,
+  '-frames:v','1','-vf','scale=2:2','-f','rawvideo','-pix_fmt','rgb24','pipe:1'
+ ],{timeout:30000}).subarray(0,3)];
+ const first=pixelAt(.15),second=pixelAt(.75),third=pixelAt(1.39);
+ assert.ok(first[0]>first[2]+80,'first observed frame must be from red footage');
+ assert.ok(second[2]>second[0]+80,'middle observed frame must be from blue footage');
+ assert.ok(third[0]>third[2]+80,'last shot must return to red original at a different source offset');
 });
