@@ -23,6 +23,7 @@
     "url": "https://github.com/561-group/.github/blob/main/TIPS.md"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "compare:web-images": "node scripts/benchmark-web-image-fixtures.mjs"
   }
 }
