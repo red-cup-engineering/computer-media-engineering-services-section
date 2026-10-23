@@ -10,7 +10,8 @@
   ],
   "exports": {
     "./raster": "./src/raster.mjs",
-    "./audio": "./src/audio.mjs"
+    "./audio": "./src/audio.mjs",
+    "./raster/web-variants": "./src/web-raster-variants.mjs"
   },
   "repository": {
     "type": "git",
@@ -20,5 +21,8 @@
   "funding": {
     "type": "individual",
     "url": "https://github.com/561-group/.github/blob/main/TIPS.md"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
   }
 }
