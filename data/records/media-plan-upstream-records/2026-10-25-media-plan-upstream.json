@@ -18,24 +18,7 @@
       "media-primitives": "computer-media-engineering-services-section src/raster.mjs and audio.mjs are small ffmpeg wrappers (fitJpeg, mediaDurationSeconds, prepareAudioChunks), not the render engine; media-production-scheduling-service schedules microdrama production; youtube-engineering-services-section and google-drive-use-team hold upload and custody; market.561.group src/microdrama.mjs only describes a commission service.",
       "divergence": "Flow orders are prompt strings with no shot, caption, overlay or paper provenance; the deterministic renderer has shots, dialogue and captions but no prompts, assets from outside, publication metadata or paper link; the Miami review order asks the video model to draw labelled text."
     },
-    "host-reads": {
-      "host": "cold-red-gate",
-      "access": "ssh, read-only",
-      "paths": [
-        "~/.local/state/561-group/google-flow/orders/pending (6 files)",
-        "~/.local/state/561-group/google-flow/orders/review (2 files)",
-        "~/.local/state/561-group/google-flow/orders/done (51 directories, listed only)",
-        "~/.local/state/561-group/google-flow/generations.jsonl (173 lines: 33 unsalted-sea-canon, 22 ice-out-trailer, 14 sigrid-song-shorts, 10 education-thumbnails, 9 duluth-drama-two-years, 11 education-short--* completions, remaining Drive custody lines)"
-      ],
-      "copied-into-fixtures": "3 order lines (pace-yourself-what-is-iaci, turntide-islands, review Miami misconception) and 10 completion lines (duluth-drama-two-years, New York City mechanism) with the host-local resource.path removed; no credential, cookie or session file was read",
-      "modified": "nothing"
-    },
-    "local": {
-      "gh": "gh auth status reports the token in ~/.config/gh/hosts.yml invalid; REST core quota exhausted until ~00:32 UTC; graphql and git over https worked (see system-debt record)",
-      "npm": "@red-cup-engineering resolves to https://registry.561.group/ through ~/.npmrc (credentials in that file, not recorded); computer-media 0.1.0 is published, 0.2.0 is not",
-      "toolchain": "ffmpeg 6.1.1 with libx264, librsvg, libass; DejaVu Sans present; espeak absent",
-      "heavy-command-lock": "/run/user/1000/agent-heavy.lock serialises node --test, npm, git and find across agents; commands waited minutes for it"
-    }
+    "evidence-scope": "This public record retains source-level domain observations, design decisions and their stated verification limits. Environment, host access, authentication, registry configuration and runtime-state details are excluded; they are not required to establish this source-repair contract."
   },
   "decided": [
     {
@@ -56,7 +39,7 @@
     },
     {
       "decision": "a shot already generated for the exact prompt (sha-256 NI, as the journal addresses it) is satisfied, not re-ordered",
-      "because": "the 173-line journal shows regenerated takes sharing one prompt address"
+      "because": "Exact prompt identity distinguishes potentially reusable completion evidence; the corrected compatibility requirements are stated in source-correction below."
     }
   ],
   "changed": [
@@ -82,7 +65,7 @@
   "verified": [
     "computer-media: 22 tests pass (admission, round-trips of real orders, real journal reuse, Hoare receipt tamper detection, skill scripts)",
     "media-engineering: 4 new tests pass including a real ffmpeg render with an SVG overlay and end card; 4 existing previsualization tests pass (byte-identical rebuild retained)",
-    "google-flow: flow-media-plan tests pass; the queue-admission test is skipped here because flow-generate's registry dependencies do not resolve in this clone",
+    "google-flow: flow-media-plan tests were reported passing; the queue-admission test was not included in the original reported evidence",
     "end to end: Unassigned Floor episode 1 rendered from a plan (51 s, 918 frames, 360x640, audio, captions, end card with paper link) and the same plan compiled to 8 priced, unqueued Flow orders"
   ],
   "left-open": [
@@ -96,5 +79,76 @@
       "https://github.com/red-cup-engineering/google-flow-engineering-services-section/pull/15",
       "https://github.com/red-cup-engineering/media-engineering-services-section/pull/1"
     ]
+  },
+  "verification-scope": "The changed and verified arrays above preserve the original author's historical report, not independently repeated verification. The independent PR5 source review rejected bc46f666c2f093ad3cb439c4fe9aabe1b054bbac using source counterexamples. The correction was fabricated and independently reviewed before its tests ran. Subsequent hosted source/component qualification is recorded below against exact commits and trees; no local media test, package installation, renderer receiving or deployment is claimed.",
+  "source-correction": {
+    "original": "https://github.com/red-cup-engineering/computer-media-engineering-services-section/pull/5",
+    "rejectedHead": "bc46f666c2f093ad3cb439c4fe9aabe1b054bbac",
+    "consumerSources": {
+      "flow": "2fb038bd433d44177cc5721f3d627183aa0267fa",
+      "media": "af1402b81ebdf1c1de418a4b6a22252ef24cab86"
+    },
+    "decisions": [
+      "Retain the shared pure upstream owner and existing schema shape. Repair its existing typed constructor with explicit closed-object and absent-only-default checks; do not add a parallel generic JSON Schema engine. The canonical json-schema-services-section evaluator was compared, but adding an unqualified dependency closure is unnecessary for this bounded domain-constructor repair. No evaluator source is copied.",
+      "A matching prompt is insufficient journal evidence. Reuse requires a text-to-video completion with NI-shaped completion/prompt/output identities, video/mp4 MIME, positive bytes and exact aspect; present prompt text must match its NI. This is carried evidence, not independent byte, rights or editorial verification. Explicit author-accepted visual.generated references remain distinct, but supplied metadata must not contradict video reuse.",
+      "Preserve author shot IDs. Generate end-card, or the first free end-card-N beginning at2, and bind its asset by that shot ID as well as asset ID.",
+      "Recompile and compare the complete receipt, not only outputId and planId. Missing/malformed receipt options refuse. The caller must supply the same journal. Replay proves consistency with the carried recipe, not authentication of a historical recipe.",
+      "For procedural-previs/1 only, refuse non-9:16, more than100 total shots including the end card, more than5 cast or12 dialogue lines per shot, and multiple frame assets. A broad renderer extension is separate work; common plan and Flow capacities remain unchanged."
+    ],
+    "verification": [
+      "Retain all original real-fixture plan tests unchanged; add pure synthetic cases for each independent counterexample, all schema-closed objects, every declared default's null/absence distinction and exact receiver boundaries.",
+      "Add the separate canonical test:media-plan script without changing the broad package test. Native no-install CI source enrollment and execution require independent exact-head/effect qualification.",
+      "Correction fabrication and static review performed no local media product execution, tests, imports, install, cleanup, signals, renderer, queue, credentials or package publication. Subsequent hosted component tests and original-generator qualification are separately evidenced below; source text alone does not establish either."
+    ],
+    "outstandingConsumerObligations": [
+      "Media PR1: forward and honor the requested music profile; current renderer derives music from visual style. Existing procedural-renderer-limits-music-none-voice-and-reproducibility remains open.",
+      "Flow PR15: reconcile the frozen lockfile with the new shared supplier and qualify the published package actually installed.",
+      "Media PR1: enroll the new tests in the actual workflow and remove masking continue-on-error only through its original CI owner, then qualify the real receiver.",
+      "All eleven original system-debt records, proposed office/no incumbency, supplier publication, consumer installation, rendering, independent review and useful receiving remain open at their existing owners."
+    ],
+    "review-refinement": {
+      "counterexample": "Independent static review found that invalid render.targets members were refused and then still sorted; a JSON object member with toString:null can throw during normalization.",
+      "requirement": "The existing coded/no-throw admission obligation applies before normalization. Reporting a refusal is not evidence that the invalid raw value is safe for derived operations.",
+      "decision": "Normalize target order only after validating the whole nonempty unique target subset. Retain all-at-once refusals rather than returning early or hiding errors behind a blanket catch.",
+      "audit": "Other admission derivations were inspected: numeric cue bounds use admitted integers or fixed fallbacks, cast/maps/sets use admitted slugs, locator/hash operations use typed admitted strings, publication tag joining uses an admitted string array, and compiler completion-ID sorting filters strings. Add malformed-member and aggregate-refusal regression cases; no execution claim."
+    }
+  },
+  "received-source-qualification": {
+    "sourceCorrectionCommit": "77a662831c38a6a01a615c06af685b70000914fa",
+    "generatedReceiptCommit": "5a0abcf8fe545e8f6edf7a0448360c65424a40dc",
+    "qualifiedTree": "91583fa15db27b51fcde98688133e22dbff979a4",
+    "correctionPullRequest": "https://github.com/red-cup-engineering/computer-media-engineering-services-section/pull/6",
+    "originalPullRequest": "https://github.com/red-cup-engineering/computer-media-engineering-services-section/pull/5",
+    "ciSupplierCommit": "f2a704e7836d80e3844cad9564579014876582fb",
+    "generatedCallerBlob": "a511e15d3fad82a066855e5cdee0de39120efc0a",
+    "generatorReceipt": "The original generator produced the caller from sourceCorrectionCommit. Independent source review accepted its exact bytes and complete tree transformation; the original post-commit verifier accepted generatedReceiptCommit. The original openPullRequest function was not invoked; the authored stacked correction preserves PR5 as the original work.",
+    "runs": [
+      {
+        "event": "push",
+        "url": "https://github.com/red-cup-engineering/computer-media-engineering-services-section/actions/runs/40209450713",
+        "checkoutCommit": "5a0abcf8fe545e8f6edf7a0448360c65424a40dc",
+        "conclusion": "success",
+        "tests": {
+          "intended": 28,
+          "passed": 28,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "event": "pull_request",
+        "url": "https://github.com/red-cup-engineering/computer-media-engineering-services-section/actions/runs/40209455563",
+        "checkoutCommit": "0e468e2ca8f6131ff899a08b7352fd9e4b6251f9",
+        "conclusion": "success",
+        "tests": {
+          "intended": 28,
+          "passed": 28,
+          "failed": 0,
+          "skipped": 0
+        }
+      }
+    ],
+    "testScope": "Independent log review received both original-route jobs: Node 24.21.0, only test/media-plan.test.mjs, concurrency 1, all 21 original cases plus 7 regression groups. The PR synthetic-merge tree equals qualifiedTree. No dependency install, package-manager cache restoration, broad package check, renderer, CLI-skill test or release job ran.",
+    "limits": "These receipts qualify only the named source/component tuple, not later source trees, package publication, consumer installation, renderer receiving or deployment. The CI supplier candidate remains separate from its own unresolved machine integration gate. This record-only revision preserves the generated caller but needs its own exact-head receiving; the earlier full receipt is historical proof, not current-tree parity after a later source edit."
   }
 }
