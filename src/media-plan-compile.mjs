@@ -11,7 +11,7 @@
  * these outputs as data.
  */
 import {
-  admitMediaPlan, canonicalJson, hexFromNi, linkHref, mediaPlanId, niOf, planShots, resolveLink, sha256Hex,
+  admitMediaPlan, canonicalJson, hexFromNi, linkHref, mediaPlanId, niOf, planShots, resolveLink, sha256Hex, svgIsSelfContained,
 } from './media-plan.mjs';
 
 export const MEDIA_PLAN_CONTRACT_ID = 'compile-media-plan/1';
@@ -30,11 +30,12 @@ export const MEDIA_PLAN_CONTRACT = Object.freeze({
   requires: Object.freeze([
     'plan is a MediaPlan v1 that admitMediaPlan accepts (schema + cross-field checks)',
     'every source document is addressed by NI, https URL or DOI; the source revision is exact',
-    'every cue lies inside its shot; every speaker is in the shot cast; every inline SVG is self-contained',
+    'every cue lies inside its shot; every speaker is in the shot cast; every inline SVG establishes the closed media-inert-svg/1 profile',
     'for target flow: no shot asks for reference/frame/video conditioning (the wire client is text-to-video only) and no generative shot exceeds the clip length',
     'for target deterministic: every shot is representable at the output frame rate without drift and every asset is resolvable inline',
     'procedural-previs/1 accepts only 9:16, at most 100 shots including the end card, 5 cast and 12 dialogue lines per shot, and one frame asset per shot',
     'when publication.requirePaperLink is set: a rel "paper" link resolves to a URL, DOI or content address',
+    'a rendered end card carries the complete selected locator in four bounded visible lines; when a paper exists the selected locator is that paper locator',
   ]),
   ensures: Object.freeze([
     'effects: none - no order queued, no credit held, no frame rendered, no file or network touched',
@@ -43,14 +44,14 @@ export const MEDIA_PLAN_CONTRACT = Object.freeze({
     'every Flow order is a single text-to-video clip for the plan aspect, with source documents carried as content-addressed sources',
     'every dialogue line is present in the caption track (unless captions.derive is explicit)',
     'deterministic job frame total equals the sum of the plan shots plus the end card',
-    'when a paper link exists it appears in the description and, when an end card is planned, on the end card',
+    'when a paper link exists its complete locator appears in the description and on a rendered end card; NI-only locators are never abbreviated',
   ]),
   refusals: Object.freeze([
     'PLAN_NOT_OBJECT', 'PLAN_KIND', 'PLAN_VERSION', 'FIELD_*', 'DUPLICATE_ID', 'UNKNOWN_*', 'SOURCE_REVISION_INEXACT',
     'SOURCE_DOCUMENT_UNADDRESSED', 'LOCATOR_*', 'SPEAKER_NOT_IN_CAST', 'CUE_OUTSIDE_SHOT', 'SVG_NOT_SELF_CONTAINED',
     'ASSET_UNADDRESSED', 'ASSET_IDENTITY_MISMATCH', 'ASSET_UNRESOLVED', 'PAPER_LINK_MISSING', 'ENDCARD_LINK_MISSING',
     'REFERENCE_CONDITIONING_UNSUPPORTED', 'SHOT_EXCEEDS_CLIP_LENGTH', 'TIMING_DRIFT', 'TARGET_NOT_PLANNED',
-    'NOTHING_TO_ORDER', 'ENDCARD_LINK_TOO_LONG', 'DESCRIPTION_TOO_LONG', 'POSTCONDITION_FAILED', 'RENDERER_UNSUPPORTED',
+    'NOTHING_TO_ORDER', 'ENDCARD_LINK_TOO_LONG', 'ENDCARD_PAPER_LINK_MISMATCH', 'DESCRIPTION_TOO_LONG', 'POSTCONDITION_FAILED', 'RENDERER_UNSUPPORTED',
   ]),
   effects: 'none',
 });
@@ -109,25 +110,34 @@ export const renderVtt = (cues) => `WEBVTT\n\n${cues.map((c) => `${timecode(c.st
 
 // ---------------------------------------------------------------- end card
 
-/** The end card: a deterministic 540x960 SVG naming the video and where the paper is. */
+const visibleLocator = (link) => link ? linkHref(link) ?? link.identity : null;
+const selectedCardLink = (plan) => plan.links.map((l) => resolveLink(plan, l)).find((l) => l.rel === plan.endCard.linkRel);
+// Locators contain no whitespace. Split by Unicode scalar, before escaping, so
+// concatenating visible lines recovers the complete locator without loss.
+const locatorLines = (locator) => {
+  const chars = Array.from(locator ?? ''), lines = [];
+  for (let i = 0; i < chars.length; i += END_CARD_LINK_WIDTH) lines.push(chars.slice(i, i + END_CARD_LINK_WIDTH).join(''));
+  return lines;
+};
+
+/** Deterministic 540x960 card; compileDeterministicRenderJob checks its layout preconditions. */
 export function endCardSvg(plan) {
   const e = plan.endCard;
-  const link = plan.links.map((l) => resolveLink(plan, l)).find((l) => l.rel === e.linkRel);
-  const href = link ? linkHref(link) : null;
+  const link = selectedCardLink(plan);
+  const locator = visibleLocator(link);
   const headline = wrap(e.headline ?? 'Read the paper', 26, 2);
   const body = wrap(e.text ?? plan.title, 34, 3);
-  const hrefLines = href ? wrap(href.replace(/^https:\/\//u, ''), END_CARD_LINK_WIDTH, END_CARD_LINK_LINES) : [];
-  const idLine = link?.identity ? link.identity.replace('ni:///sha-256;', 'sha-256;').slice(0, 24) + '...' : null;
-  const lines = (arr, x, y, size, fill, gap) => arr.map((t, i) => `<text x="${x}" y="${y + i * gap}" text-anchor="middle" font-family="DejaVu Sans" font-size="${size}" fill="${fill}">${esc(t)}</text>`).join('');
+  const hrefLines = locatorLines(locator);
+  const secondaryDoi = link?.doi && Array.from(`doi:${link.doi}`).length <= 60 ? `doi:${link.doi}` : null;
+  const lines = (arr, x, y, size, fill, gap, fit = false) => arr.map((t, i) => `<text x="${x}" y="${y + i * gap}" text-anchor="middle" font-family="DejaVu Sans" font-size="${size}" fill="${fill}"${fit ? ` textLength="${Math.min(440, Array.from(t).length * 11)}" lengthAdjust="spacingAndGlyphs"` : ''}>${esc(t)}</text>`).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="540" height="960" viewBox="0 0 540 960">
 <defs><linearGradient id="bg" x1="0" y1="0" x2="0.55" y2="1"><stop stop-color="#070e17"/><stop offset=".57" stop-color="#132730"/><stop offset="1" stop-color="#090b15"/></linearGradient></defs>
 <rect width="540" height="960" fill="url(#bg)"/>
 <rect x="30" y="250" width="480" height="460" rx="10" fill="#06121d" fill-opacity=".85" stroke="#99d1be" stroke-opacity=".35"/>
 ${lines(headline, 270, 330, 34, '#f1eee9', 44)}
 ${lines(body, 270, 440, 20, '#acbcc6', 28)}
-${href ? `<text x="270" y="560" text-anchor="middle" font-family="DejaVu Sans" font-size="13" letter-spacing="2" fill="#99d1be">${esc((link.rel ?? 'link').toUpperCase())}</text>${lines(hrefLines, 270, 590, 19, '#f1eee9', 26)}` : ''}
-${link?.doi ? `<text x="270" y="${590 + hrefLines.length * 26 + 14}" text-anchor="middle" font-family="DejaVu Sans" font-size="15" fill="#acbcc6">doi:${esc(link.doi)}</text>` : ''}
-${idLine ? `<text x="270" y="690" text-anchor="middle" font-family="DejaVu Sans" font-size="11" fill="#899da8">${esc(idLine)}</text>` : ''}
+${locator ? `<text x="270" y="560" text-anchor="middle" font-family="DejaVu Sans" font-size="13" letter-spacing="2" fill="#99d1be">${esc((link.rel ?? 'link').toUpperCase())}</text>${lines(hrefLines, 270, 590, 19, '#f1eee9', 26, true)}` : ''}
+${secondaryDoi ? `<text x="270" y="${590 + hrefLines.length * 26 + 14}" text-anchor="middle" font-family="DejaVu Sans" font-size="15" fill="#acbcc6" textLength="${Math.min(440, Array.from(secondaryDoi).length * 8)}" lengthAdjust="spacingAndGlyphs">${esc(secondaryDoi)}</text>` : ''}
 </svg>`;
 }
 
@@ -256,9 +266,10 @@ export function compileDeterministicRenderJob(plan) {
     }
   }
   if (plan.endCard) {
-    const card = plan.links.map((l) => resolveLink(plan, l)).find((l) => l.rel === plan.endCard.linkRel);
-    const href = card ? linkHref(card) : null;
-    if (href && wrap(href.replace(/^https:\/\//u, ''), END_CARD_LINK_WIDTH, END_CARD_LINK_LINES).join('').length < href.replace(/^https:\/\//u, '').length) refusals.push(refusal('ENDCARD_LINK_TOO_LONG', 'endCard.linkRel', `the link does not fit the end card (${END_CARD_LINK_WIDTH * END_CARD_LINK_LINES} characters); give the link a shorter URL or a DOI`));
+    const locator = visibleLocator(selectedCardLink(plan));
+    const paper = plan.links.map((l) => resolveLink(plan, l)).find((l) => l.rel === 'paper');
+    if (locatorLines(locator).length > END_CARD_LINK_LINES) refusals.push(refusal('ENDCARD_LINK_TOO_LONG', 'endCard.linkRel', `the complete locator does not fit the end card (${END_CARD_LINK_WIDTH * END_CARD_LINK_LINES} Unicode scalars); give the link a shorter complete URL or DOI`));
+    if (paper && locator !== visibleLocator(paper)) refusals.push(refusal('ENDCARD_PAPER_LINK_MISMATCH', 'endCard.linkRel', 'the selected end-card locator differs from the required paper locator'));
     const svg = endCardSvg(plan);
     const frames = plan.endCard.seconds * plan.fps;
     const cardShotId = endCardShotId(plan);
@@ -334,11 +345,18 @@ function postconditions(plan, outputs) {
   }
   if (outputs.deterministic) {
     const job = outputs.deterministic;
+    check('deterministic-assets-establish-inert-profile', job.assets.every((a) => svgIsSelfContained(a.svg)));
     check('frames-conserved', job.totalFrames === shots.reduce((n, s) => n + s.frames, 0) + (plan.endCard ? plan.endCard.seconds * plan.fps : 0));
     check('shot-ids-conserved', canonicalJson(job.input.episode.shots.map((s) => s.id)) === canonicalJson([...shots.map((s) => s.id), ...(plan.endCard ? [endCardShotId(plan)] : [])]));
     if (plan.captions.derive !== 'explicit') {
       const text = job.captions.cues.map((c) => c.text).join('\n');
       check('every-dialogue-line-captioned', shots.every((s) => s.dialogue.every((d) => text.includes(d.text))));
+    }
+    if (plan.endCard) {
+      const card = job.assets.find((a) => a.shotId === endCardShotId(plan) && a.assetId === 'end-card-frame');
+      const text = card ? [...card.svg.matchAll(/>([^<]*)<\/text>/gu)].map((m) => m[1]).join('') : '';
+      const locator = visibleLocator(selectedCardLink(plan));
+      check('selected-link-on-end-card', locator && text.includes(esc(locator)));
     }
   }
   const paper = outputs.publication.links.find((l) => l.rel === 'paper');
@@ -347,7 +365,9 @@ function postconditions(plan, outputs) {
     check('paper-link-in-description', (href && outputs.publication.description.includes(href)) || (paper.identity && outputs.publication.description.includes(paper.identity)));
     if (plan.endCard && outputs.deterministic) {
       const card = outputs.deterministic.assets.find((a) => a.shotId === endCardShotId(plan) && a.assetId === 'end-card-frame');
-      check('paper-link-on-end-card', card && (!href || card.svg.includes(esc(href.replace(/^https:\/\//u, '')).slice(0, 20))));
+      const text = card ? [...card.svg.matchAll(/>([^<]*)<\/text>/gu)].map((m) => m[1]).join('') : '';
+      const locator = visibleLocator(paper);
+      check('paper-link-on-end-card', locator && text.includes(esc(locator)));
     }
   }
   return frozen(checks);

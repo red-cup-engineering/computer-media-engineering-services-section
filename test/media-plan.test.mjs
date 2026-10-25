@@ -526,3 +526,190 @@ test('malformed compile options yield coded refusals instead of runtime exceptio
   }
   assert.equal(compileMediaPlan(plan, { targets: ['unknown'] }).refusals[0].code, 'TARGET_NOT_PLANNED');
 });
+
+// Release-source repair: retain every preceding original/received case unchanged.
+const inertSvg = (body, attributes = '') => `<svg xmlns="http://www.w3.org/2000/svg"${attributes ? ` ${attributes}` : ''}>${body}</svg>`;
+const escapedLocator = (s) => s.replace(/[&<>"']/gu, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]);
+const cardText = (job) => [...job.assets.find((a) => a.assetId === 'end-card-frame').svg.matchAll(/>([^<]*)<\/text>/gu)].map((m) => m[1]).join('');
+
+test('inert profile preserves actual chart bytes and required report, hatching and end-card controls', () => {
+  // Exact public producer example, not a local producer execution:
+  // chart-specification-rendering-service@4a02cef5aa1310dc5869c056ffbf5994621b2e12,
+  // package.json x-market.offers[0].examples.output.svg (MIT).
+  const chart = fixture('chart-market-example.svg');
+  assert.equal(Buffer.byteLength(chart), 1026);
+  assert.equal(niOf(chart), 'ni:///sha-256;-tq9eH72IwP5mlqwSAbr0SfQsrNcfCYje7I8MzajLeA');
+  // Source-shaped controls from the chart README's hatching grammar and the
+  // report owner's renderSvgBytes at 19f6775122b5cab33f92c02c2d07a1f66c5df514.
+  const hatch = inertSvg('<defs><pattern id="hatch-123abc" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="#123abc" stroke-width="1.4"/></pattern></defs><path d="M.5,-.5h10v20h-10Z" fill="url(#hatch-123abc)" stroke-dasharray="3,3"/><text x="1" y="2">Author&#39;s &amp; climate — café</text>');
+  const report = inertSvg('<title>Report &amp; source</title><desc>Source: https://example.org/a</desc><rect width="1200" height="1240" fill="#fff"/><rect x="20" y="30" width="4" height="4" fill="#000"/>', 'version="1.2" baseProfile="tiny" width="1200" height="1240" viewBox="0 0 1200 1240"');
+  const card = endCardSvg(admitMediaPlan(withCard(syntheticPlan())).plan);
+  for (const svg of [chart, hatch, report, card, syntheticSvg]) {
+    assert.equal(svgIsSelfContained(svg), true, svg);
+    const candidate = syntheticPlan();
+    candidate.scenes[0].shots[0].visual.assets = [{ id: 'source-graphic', role: 'overlay', svg, identity: niOf(svg) }];
+    const out = compileMediaPlan(candidate, { targets: ['deterministic'] });
+    assert.equal(out.ok, true, JSON.stringify(out.refusals));
+    assert.equal(out.receipt.outputs.deterministic.assets[0].svg, svg, 'receiver gets exact author bytes');
+    assert.equal(niOf(out.receipt.outputs.deterministic.assets[0].svg), niOf(svg));
+  }
+});
+
+test('inert profile rejects unmodeled markup, namespace changes and non-scalar/entity input', () => {
+  const bad = [
+    '<svg/>', '<s:svg xmlns:s="http://www.w3.org/2000/svg"/>', inertSvg('<g></rect>'),
+    inertSvg('<g>') , inertSvg('<rect width="1" width="2"/>'), inertSvg('<rect width=1/>'),
+    inertSvg('<rect/>') + '<svg xmlns="http://www.w3.org/2000/svg"/>', inertSvg('not whitespace'),
+    inertSvg('<style>@import "https://example.invalid/a.css";</style>'),
+    inertSvg('<style>@im\\70ort "https://example.invalid/a.css";</style>'),
+    inertSvg('<foreignObject/>'), inertSvg('<image href="data:image/svg+xml,anything"/>'),
+    inertSvg('<use href="#x"/>'), inertSvg('<a href="https://example.invalid"/>'),
+    inertSvg('<g xmlns="https://example.invalid"/>'), inertSvg('<g xmlns:xlink="http://www.w3.org/1999/xlink"/>'),
+    inertSvg('<g xml:base="https://example.invalid"/>'), inertSvg('<x:path/>'),
+    inertSvg('<rect style="fill:red"/>'), inertSvg('<rect onload="run()"/>'),
+    inertSvg('<rect/>', 'xmlns:xlink="https://example.invalid"'),
+    '<!DOCTYPE svg [<!ENTITY x "payload">]>' + inertSvg('<text>&x;</text>'),
+    inertSvg('<!-- unsupported comment -->'), inertSvg('<![CDATA[unsupported]]>'),
+    inertSvg('<?instruction data?>'), '<?xml version="1.1"?>' + inertSvg(''),
+    '<?xml version="1.0" encoding="UTF-16"?>' + inertSvg(''),
+    inertSvg('<text>&unknown;</text>'), inertSvg('<text>&#0;</text>'), inertSvg('<text>&#x110000;</text>'),
+    inertSvg('<text>&#xD800;</text>'), inertSvg('<text>&#xFFFE;</text>'), inertSvg('<text>]]></text>'),
+    inertSvg('<text>\u0000</text>'), inertSvg('<text>\uD800</text>'), inertSvg('<text>\uFFFF</text>'),
+    inertSvg('<text title="raw<markup"/>'),
+  ];
+  for (const svg of bad) assert.equal(svgIsSelfContained(svg), false, JSON.stringify(svg));
+  assert.equal(svgIsSelfContained('\uFEFF<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + inertSvg('<text>&lt;style&gt; &amp;#60; &#x1F30D; &quot; &#39;</text>')), true);
+  assert.equal(svgIsSelfContained({ toString: null }), false);
+});
+
+test('inert profile consumes finite presentation, geometry, path and transform languages completely', () => {
+  const valid = [
+    '<path d="M0 0 L1-2 H3 V4 C1 2 3 4 5 6 S7 8 9 10 Q1 2 3 4 T5 6 A2 3 45 0 1 7 8 Z"/>',
+    '<g transform="matrix(1,0,0,1,0,0), translate(2 3) scale(1.5) rotate(45 2 3) skewX(3) skewY(-2)"><circle r="2" fill="rgba(10,20,30,0.5)"/><ellipse rx="2" ry="3" fill="hsl(120,50%,50%)"/><rect fill="rgb(10%,20%,30%)" color="#123" stroke="currentColor"/></g>',
+    '<text font-family="DejaVu Sans, sans-serif" x="1 2" y="3" dx="1px,2px" font-size="12" font-weight="600">A<tspan>β</tspan></text>',
+  ];
+  for (const body of valid) assert.equal(svgIsSelfContained(inertSvg(body)), true, body);
+  const invalid = [
+    '<rect fill="url(https://example.invalid/x)"/>', '<rect fill="u\\72l(#x)"/>',
+    '<rect fill="rgb(1,2)"/>', '<rect fill="rgba(1,2,3,2)"/>', '<rect fill="rgb(1%,2,3)"/>',
+    '<rect fill="hsl(1,2,3)"/>', '<rect fill="rgba(1,2,3,.5) trailing"/>',
+    '<rect fill="var(--paint)"/>', '<rect fill="InHeRiT"/>', '<rect fill="context-fill"/>',
+    '<rect stroke="context-stroke"/>', '<rect color="url(#x)"/>', '<rect fill="url(#x) red"/>',
+    '<rect width="-1"/>', '<rect opacity="1.1"/>', '<rect x="1e999"/>', '<rect x="1000001"/>',
+    '<rect filter="url(#x)"/>', '<rect data-anything="x"/>', '<rect stroke-dasharray="1,,2"/>',
+    '<g transform="translate(1,2,3)"/>', '<g transform="rotate(1,2)"/>', '<g transform="scale(1)junk"/>',
+    '<path d="L0 0"/>', '<path d="M0"/>', '<path d="M0 0 A1 1 0 2 1 2 2"/>',
+    '<path d="M0 0 A-1 1 0 0 1 2 2"/>', '<path d="M0 0 Z1"/>', '<path d="M0 0 R1 2"/>',
+    '<polygon points="0 0 1 1 2"/>', '<text font-family="url(example)"/>',
+  ];
+  for (const body of invalid) assert.equal(svgIsSelfContained(inertSvg(body)), false, body);
+});
+
+test('inert resource graph rejects unresolved, mistyped, direct and inherited cycles', () => {
+  const pattern = (id, body, extra = '') => `<pattern id="${id}" width="4" height="4"${extra ? ` ${extra}` : ''}>${body}</pattern>`;
+  const bad = [
+    inertSvg('<rect fill="url(#missing)"/>'),
+    inertSvg('<rect id="x"/><rect fill="url(#x)"/>'),
+    inertSvg('<rect id="x"/><rect id="x"/>'),
+    inertSvg('<text aria-labelledby="missing">text</text>'),
+    inertSvg('<defs><linearGradient id="x"/></defs><rect clip-path="url(#x)"/>'),
+    inertSvg('<defs>' + pattern('p', '<rect fill="url(#p)"/>') + '</defs>'),
+    inertSvg('<defs>' + pattern('a', '<rect fill="url(#b)"/>') + pattern('b', '<rect fill="url(#a)"/>') + '</defs>'),
+    inertSvg('<defs>' + pattern('p', '<rect/>') + '</defs>', 'fill="url(#p)"'),
+    inertSvg('<g stroke="url(#p)"><defs>' + pattern('p', '<rect/>') + '</defs></g>'),
+    inertSvg('<g fill="url(#p)"><defs>' + pattern('p', '<rect fill="none"/>') + '</defs></g>'),
+    inertSvg('<defs>' + pattern('p', '<rect/>', 'fill="not-a-color"') + '</defs>', 'fill="url(#p)"'),
+    inertSvg('<g stroke="url(#p)"><defs>' + pattern('p', '<rect/>', 'stroke="not-a-color"') + '</defs></g>'),
+    inertSvg('<defs>' + pattern('p', '<rect/>', 'fill="rgba(1,2,3,.5)"') + '</defs>', 'fill="url(#p)"'),
+    inertSvg('<g marker-start="url(#m)"><defs><marker id="m"><path d="M0 0L1 1"/></marker></defs></g>'),
+    inertSvg('<g clip-path="url(#c)"><defs><clipPath id="c"><rect/></clipPath></defs></g>'),
+  ];
+  for (const svg of bad) assert.equal(svgIsSelfContained(svg), false, svg);
+  const good = [
+    inertSvg('<defs>' + pattern('p', '<rect/>', 'fill="none"') + '</defs><rect/>', 'fill="url(#p)"'),
+    inertSvg('<defs>' + pattern('p', '<rect/>', 'fill="#aBc"') + '</defs><rect/>', 'fill="url(#p)"'),
+    inertSvg('<g stroke="url(#p)"><defs>' + pattern('p', '<rect/>', 'stroke="WHITE"') + '</defs></g>'),
+    inertSvg('<defs>' + pattern('p', '<rect/>', 'fill="currentColor"') + '</defs>', 'fill="url(#p)" color="#123456"'),
+    inertSvg('<defs>' + pattern('a', '<rect fill="url(#b)"/>') + pattern('b', '<rect fill="#abc"/>') + '</defs><rect fill="url(\'#a\')"/>'),
+    inertSvg('<defs><clipPath id="c"><rect/></clipPath><marker id="m"><path d="M0 0L1 1"/></marker></defs><path d="M0 0L1 1" clip-path="url(#c)" marker-end="url(#m)"/>'),
+    inertSvg('<desc id="description">https://example.org/ is inert text</desc><text aria-labelledby="description">label</text>'),
+  ];
+  for (const svg of good) assert.equal(svgIsSelfContained(svg), true, svg);
+});
+
+test('end cards preserve complete NI, URL and DOI locators and refuse actual paper mismatch or overflow', () => {
+  const locators = [
+    { rel: 'paper', identity: niOf('complete NI-only paper') },
+    { rel: 'paper', url: 'https://example.org/a?x=1&y=2' },
+    { rel: 'paper', doi: '10.5555/complete-doi.test' },
+    { rel: 'paper', url: `https://example.org/${'a'.repeat(136 - 'https://example.org/'.length)}` },
+  ];
+  for (const link of locators) {
+    const plan = withCard(syntheticPlan()); plan.links = [link];
+    const expected = link.url ?? (link.doi ? `https://doi.org/${link.doi}` : link.identity);
+    const out = compileMediaPlan(plan, { targets: ['deterministic'] });
+    assert.equal(out.ok, true, JSON.stringify(out.refusals));
+    assert.ok(cardText(out.receipt.outputs.deterministic).includes(escapedLocator(expected)), expected);
+    const card = out.receipt.outputs.deterministic.assets.find((a) => a.assetId === 'end-card-frame');
+    const fitted = [...card.svg.matchAll(/textLength="([0-9]+)" lengthAdjust="spacingAndGlyphs"/gu)];
+    assert.ok(fitted.length > 0 && fitted.every((m) => Number(m[1]) <= 440), 'visible locator lines have explicit width bounds');
+    assert.ok(out.receipt.outputs.publication.description.includes(expected));
+    assert.ok(out.receipt.checks.some((c) => c.name === 'paper-link-on-end-card' && c.ok));
+    assert.ok(out.receipt.checks.some((c) => c.name === 'selected-link-on-end-card' && c.ok));
+    assert.equal(verifyCompilationReceipt(plan, out.receipt).ok, true);
+  }
+  const overflow = withCard(syntheticPlan()); overflow.links = [{ rel: 'paper', url: `https://example.org/${'a'.repeat(137 - 'https://example.org/'.length)}` }];
+  assert.ok(compileMediaPlan(overflow, { targets: ['deterministic'] }).refusals.some((r) => r.code === 'ENDCARD_LINK_TOO_LONG' && r.path === 'endCard.linkRel'));
+  const selection = withCard(syntheticPlan());
+  selection.links = [{ rel: 'paper', identity: niOf('paper') }, { rel: 'source', identity: niOf('paper') }];
+  selection.endCard.linkRel = 'source';
+  assert.equal(compileMediaPlan(selection, { targets: ['deterministic'] }).ok, true, 'same locator, different relation is compatible');
+  selection.links[1].identity = niOf('other source');
+  assert.ok(compileMediaPlan(selection, { targets: ['deterministic'] }).refusals.some((r) => r.code === 'ENDCARD_PAPER_LINK_MISMATCH'));
+});
+
+test('narrative migration gives returning beat runs unique scene identities without changing source shots', () => {
+  const original = structuredClone(episode);
+  const input = structuredClone(episode);
+  input.episode.beats = [];
+  const beats = ['a', 'b', 'a', 'a', 'a-run-2', 'b', 'a', 'a'];
+  input.episode.shots.forEach((shot, i) => { shot.beatId = beats[i]; });
+  const migrated = mediaPlanFromNarrativeEpisode(input);
+  assert.deepEqual(migrated.scenes.map((s) => s.id), ['a', 'b', 'a-run-3', 'a-run-2', 'b-run-2', 'a-run-4']);
+  assert.deepEqual(migrated.scenes.map((s) => s.shots.length), [1, 1, 2, 1, 1, 2]);
+  assert.equal(admitMediaPlan(migrated).ok, true);
+  const out = compileMediaPlan(migrated, { targets: ['deterministic'] });
+  assert.equal(out.ok, true, JSON.stringify(out.refusals));
+  for (const [i, shot] of out.receipt.outputs.deterministic.input.episode.shots.entries()) {
+    for (const field of ['id', 'beatId', 'frames', 'locationId', 'characterIds', 'action', 'dialogue']) assert.deepEqual(shot[field], input.episode.shots[i][field], `${i}:${field}`);
+  }
+  assert.equal(migrated.source.documents[0].identity, niOf(canonicalJson(input)));
+  assert.deepEqual(mediaPlanFromNarrativeEpisode(input), migrated);
+  const long = structuredClone(input);
+  long.episode.shots.forEach((shot, i) => { shot.beatId = i % 2 ? 'b' : 'a'.repeat(80); });
+  const longPlan = mediaPlanFromNarrativeEpisode(long);
+  assert.equal(admitMediaPlan(longPlan).ok, true);
+  assert.ok(longPlan.scenes.every((s) => s.id.length <= 80));
+  assert.equal(new Set(longPlan.scenes.map((s) => s.id)).size, longPlan.scenes.length);
+  migrated.scenes[0].shots[0].dialogue[0].text = 'not the source';
+  assert.notEqual(input.episode.shots[0].dialogue[0].text, 'not the source');
+  assert.deepEqual(episode, original, 'original real fixture unchanged');
+  assert.deepEqual(episodePlan().scenes.map((s) => s.id), [...new Set(episode.episode.shots.map((s) => s.beatId))]);
+});
+
+test('profile limits and schema guidance refuse unsupported assets with a coded path', () => {
+  const schema = JSON.parse(readFileSync(new URL('../data/schema/media-plan.schema.json', import.meta.url), 'utf8'));
+  assert.match(schema.$defs.visual.properties.assets.items.properties.svg.$comment, /media-inert-svg\/1/u);
+  const profile = readFileSync(new URL('../data/schema/media-inert-svg-profile.md', import.meta.url), 'utf8');
+  assert.ok(profile.includes('media-inert-svg/1') && profile.includes('not a general XML'));
+  assert.equal(svgIsSelfContained(inertSvg('<g>'.repeat(62) + '<rect/>' + '</g>'.repeat(62))), true);
+  const tooDeep = inertSvg('<g>'.repeat(63) + '<rect/>' + '</g>'.repeat(63));
+  const tooMany = inertSvg('<rect/>'.repeat(10000));
+  for (const svg of [tooDeep, tooMany, inertSvg('<text>' + 'x'.repeat(400000) + '</text>')]) {
+    assert.equal(svgIsSelfContained(svg), false);
+    const plan = syntheticPlan(); plan.scenes[0].shots[0].visual.assets = [{ id: 'unsupported', role: 'overlay', svg }];
+    const admitted = admitMediaPlan(plan);
+    assert.equal(admitted.ok, false);
+    assert.ok(admitted.refusals.some((r) => r.code === 'SVG_NOT_SELF_CONTAINED' && r.path === 'scenes[0].shots[0].visual.assets[0].svg'));
+  }
+});

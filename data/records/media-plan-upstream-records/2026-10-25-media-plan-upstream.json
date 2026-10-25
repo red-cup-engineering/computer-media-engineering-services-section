@@ -150,5 +150,26 @@
     ],
     "testScope": "Independent log review received both original-route jobs: Node 24.21.0, only test/media-plan.test.mjs, concurrency 1, all 21 original cases plus 7 regression groups. The PR synthetic-merge tree equals qualifiedTree. No dependency install, package-manager cache restoration, broad package check, renderer, CLI-skill test or release job ran.",
     "limits": "These receipts qualify only the named source/component tuple, not later source trees, package publication, consumer installation, renderer receiving or deployment. The CI supplier candidate remains separate from its own unresolved machine integration gate. This record-only revision preserves the generated caller but needs its own exact-head receiving; the earlier full receipt is historical proof, not current-tree parity after a later source edit."
+  },
+  "release-source-correction": {
+    "basis": {
+      "commit": "e288aecff039a00eb87f9768ebfb19de553c2594",
+      "tree": "dbe64e4622f80921169cf70a498574eb4083f7ed",
+      "originalPullRequest": "https://github.com/red-cup-engineering/computer-media-engineering-services-section/pull/5"
+    },
+    "counterexamples": [
+      "The former SVG denylist admitted CSS imports and had no closed markup/namespace/reference model.",
+      "NI-only paper identities were abbreviated on the card, while the old postcondition treated absent href as success.",
+      "Valid A,B,A narrative beat runs generated duplicate scene IDs."
+    ],
+    "alternatives": "The existing XML reader at xml-document-rendering-service 7bd0105e6816f60e91c52d9b1578e75c618577f2 owns general XML/Namespaces reading, but its @rgrove/parse-xml 5.0.0 closure would add an external dependency to this dependency-free package. Its SVG linter is not a closure proof. Rather than extend the denylist or introduce a general XML reader here, recognize the documented finite media-inert-svg/1 domain language. No owner implementation is copied.",
+    "decisions": [
+      "Recognize finite structure, namespace, scalar/entity and attribute languages; validate unique/resolved typed local references and a conservative effective-inherited resource graph. Refuse unsupported input without altering accepted author bytes. This is not arbitrary SVG sanitization, browser security, rights or visual fidelity qualification. Inherited fill/stroke references clear only for proved baseline scalar overrides; uninterpreted and nonbaseline paint forms conservatively retain them, since ignored declarations cannot establish an override.",
+      "Preserve actual public chart example bytes, required hatching/report forms and existing frame/overlay/end-card controls. Unsupported CSS, image/use, prefix rebinding and context paint semantics remain explicit profile limits of the first unreleased plan API.",
+      "Render the complete selected URL, DOI resolver URL or NI; refuse an overlong locator or actually different paper locator. Keep fitting complete secondary DOI text, never an abbreviated identity. Inspect visible generated text in postconditions.",
+      "Give every contiguous raw-beat run a deterministic unique scene ID, reserving future first-run bases before suffixing; preserve author shot IDs, beat IDs, order, frames, dialogue and source identity."
+    ],
+    "verificationScope": "The preceding 28-case receipts remain historical evidence for their named source. This coherent release-source revision appends seven plan regression groups and enrolls the existing one-case CLI protocol test through test:media-plan-release: 36 intended cases, not yet executed for this revision. Existing 28-case test prefix and three unmodified raster tests are preserved. Raster binary availability is unproved on the observed hosted image, so those three cases remain unrun. Source review and original-generated caller/current-head CI receiving are required before integration; no package publication or consumer receiving is inferred.",
+    "methodCorrection": "The existing compile/run-cycle methods now require asset-profile admission, exact locator preservation and source-to-migration invariants against the actual receiver, independently of self-consistent receipt replay. The separate publication, consumer lockfile/music/test-enrollment and all eleven system debts remain at their original owners."
   }
 }

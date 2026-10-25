@@ -25,6 +25,18 @@ export function mediaPlanFromNarrativeEpisode(raw, { consumer, title, links = []
   const { episode, source } = input;
   const sourceRevision = source?.paracosm?.sourceRevision ?? source?.sourceRevision;
   const scenes = [];
+  const reservedBases = new Set(episode.shots.map((shot) => slugify(shot.beatId)));
+  const usedSceneIds = new Set();
+  let previousBeat;
+  const sceneId = (beat) => {
+    const base = slugify(beat);
+    if (!usedSceneIds.has(base)) { usedSceneIds.add(base); return base; }
+    for (let run = 2; ; run += 1) {
+      const suffix = `-run-${run}`;
+      const candidate = `${base.slice(0, 80 - suffix.length).replace(/-+$/u, '')}${suffix}`;
+      if (!usedSceneIds.has(candidate) && !reservedBases.has(candidate)) { usedSceneIds.add(candidate); return candidate; }
+    }
+  };
   for (const shot of episode.shots) {
     const last = scenes.at(-1);
     const planShot = {
@@ -32,8 +44,9 @@ export function mediaPlanFromNarrativeEpisode(raw, { consumer, title, links = []
       ...(shot.camera ? { camera: shot.camera } : {}), action: shot.action, dialogue: shot.dialogue,
       visual: { mode: 'either' },
     };
-    if (last && last.id === slugify(shot.beatId)) last.shots.push(planShot);
-    else scenes.push({ id: slugify(shot.beatId), title: shot.beatId.replace(/-/gu, ' '), shots: [planShot] });
+    if (last && previousBeat === shot.beatId) last.shots.push(planShot);
+    else scenes.push({ id: sceneId(shot.beatId), title: shot.beatId.replace(/-/gu, ' '), shots: [planShot] });
+    previousBeat = shot.beatId;
   }
   return {
     kind: 'MediaPlan', version: 1,

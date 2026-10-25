@@ -15,6 +15,7 @@
  * with a stable code and a path, so a caller (or a bazaar contract) can act on codes.
  */
 import { createHash } from 'node:crypto';
+import { isMediaInertSvg } from './media-inert-svg.mjs';
 
 export const MEDIA_PLAN_KIND = 'MediaPlan';
 export const MEDIA_PLAN_VERSION = 1;
@@ -104,15 +105,9 @@ class Refusals {
   }
 }
 
-/** An SVG a plan carries inline must be a self-contained image: no script, no foreign content, no network. */
+/** True establishes media-inert-svg/1, not general XML validity or arbitrary SVG safety. */
 export function svgIsSelfContained(svg) {
-  if (typeof svg !== 'string' || !/^\s*(?:<\?xml[^>]*\?>\s*)?<svg[\s>]/u.test(svg)) return false;
-  if (/<\s*(?:script|foreignObject|iframe|object|embed)\b/iu.test(svg)) return false;
-  if (/\son[a-z]+\s*=/iu.test(svg)) return false;
-  if (/(?:xlink:)?href\s*=\s*["'](?!#|data:image\/)/iu.test(svg)) return false;
-  if (/url\(\s*["']?(?!#|data:)/iu.test(svg)) return false;
-  if (/<!ENTITY|<!DOCTYPE/iu.test(svg)) return false;
-  return true;
+  return isMediaInertSvg(svg);
 }
 
 function admitLocator(r, value, path, { requireOne = true } = {}) {
@@ -224,7 +219,7 @@ function admitShot(r, raw, path, ctx) {
       if (out.id) { const key = `${shot.id}/${out.id}`; if (ctx.assetIds.has(key)) r.add('DUPLICATE_ID', `${p}.id`, `asset ${out.id} is repeated in shot`); ctx.assetIds.add(key); }
       if (a.svg !== undefined) {
         if (typeof a.svg === 'string' && a.svg.length <= 400000 && svgIsSelfContained(a.svg)) out.svg = a.svg;
-        else r.add('SVG_NOT_SELF_CONTAINED', `${p}.svg`, 'inline SVG must be an <svg> document of at most 400000 characters with no script, foreign content, event handlers or external references');
+        else r.add('SVG_NOT_SELF_CONTAINED', `${p}.svg`, 'inline asset does not establish the supported media-inert-svg/1 profile (data/schema/media-inert-svg-profile.md); unsupported syntax is not repaired');
       }
       if (a.identity !== undefined) { if (isNi(a.identity)) out.identity = a.identity; else r.add('LOCATOR_IDENTITY', `${p}.identity`, 'identity must be an exact sha-256 NI'); }
       if (out.svg === undefined && out.identity === undefined) r.add('ASSET_UNADDRESSED', p, 'an asset needs inline svg or a content-addressed identity');

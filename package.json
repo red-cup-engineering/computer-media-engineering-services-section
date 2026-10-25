@@ -31,6 +31,7 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "compare:web-images": "node scripts/benchmark-web-image-fixtures.mjs",
-    "test:media-plan": "node --test \"test/media-plan.test.mjs\""
+    "test:media-plan": "node --test \"test/media-plan.test.mjs\"",
+    "test:media-plan-release": "node --test \"test/media-plan.test.mjs\" \"test/media-plan-skill.test.mjs\""
   }
 }

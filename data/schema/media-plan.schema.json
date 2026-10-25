@@ -176,7 +176,7 @@
             "anyOf": [{ "required": ["svg"] }, { "required": ["identity"] }],
             "properties": {
               "id": { "$ref": "#/$defs/slug" }, "role": { "enum": ["frame", "overlay"] }, "mediaType": { "const": "image/svg+xml" },
-              "svg": { "type": "string", "maxLength": 400000 }, "identity": { "$ref": "#/$defs/ni" },
+              "svg": { "type": "string", "maxLength": 400000, "$comment": "Executable admission requires media-inert-svg/1; see media-inert-svg-profile.md. JSON Schema describes the string slot, not the closed asset grammar." }, "identity": { "$ref": "#/$defs/ni" },
               "producer": { "type": "object", "required": ["service"], "additionalProperties": false, "properties": { "service": { "type": "string" }, "spec": { "type": "string" } } }
             }
           },

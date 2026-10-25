@@ -14,6 +14,7 @@
   "required-evidence": [
     "media-plan.admitted.json",
     "media-plan.compile-receipt.json (all deterministic fields verify using the same supplied completion journal; warnings reviewed after verification)",
+    "Asset-profile admission, complete selected locator in visible end-card text, and source-to-migration shot/beat/order/timing conservation checked separately from successful receipt replay",
     "render-receipt.json or flow-orders.prepared.json"
   ],
   "allowed-effects": [

@@ -40,13 +40,15 @@ Step 5 is a separate, explicit act: preparing orders spends nothing, queueing wr
 
 ## Checks between steps
 
+- Before 2: establish actual [`media-inert-svg/1`](../../../../data/schema/media-inert-svg-profile.md) admission for every carried inline asset; a producer's “self-contained” claim alone is insufficient. On episode migration, compare source shot/beat IDs, sequence, frames and dialogue against the plan, including returning beat runs and generated scene-ID collisions.
 - After 2: preserve the exact completion journal used for this compilation; a new journal requires a new receipt.
 - After 3: exit 0 from whole-receipt replay, including warnings, checks, effects, options and outputs.
   Only then read `warnings`; no `GENERATIVE_TEXT_REQUEST` remains unaddressed for a text-bearing graphic.
   A warning-driven plan change requires recompilation and a new successful audit. Never hand an unaudited
   or failed receipt to a renderer or queue.
+- Also after 3: compare the full selected URL/DOI/NI against visible end-card text, and verify the required paper locator really appears. Whole-receipt replay proves consistency, not that an independently required source or consumer invariant was modeled correctly. A closure, locator or migration defect returns to the governing requirements and architecture before another implementation; do not accumulate one-string patches.
 - After 4a: `status` is `PREPARED_NOT_QUEUED_NOT_SUBMITTED`; `estimate.units` is within the ceiling the person set. `HELD_CREDIT_CEILING` is a stop, not a trim.
-- After 4b: every check in `render-receipt.json` is `ok`.
+- After 4b: every check in `render-receipt.json` is `ok`; verify admitted asset bytes/roles, complete locator visibility and source shot/beat/timeline associations against the actual rendered receiver, not just compiler self-replay.
 - Before 5: the person has said to queue. A runbook never queues on its own.
 
 ## Rollback
