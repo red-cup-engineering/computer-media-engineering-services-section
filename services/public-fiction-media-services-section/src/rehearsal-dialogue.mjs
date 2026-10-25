@@ -72,13 +72,13 @@ export function encodeMonoPcm16(samples,rate=24000){
  return wav;
 }
 /** Invoke espeak only through a fixed executable and stdin; never a shell. */
-export function synthesizeRehearsalDialogue(shots,fps,totalSeconds,{espeak='espeak',rate=24000,volume=.74,maxSpeed=2.8}={}){
+export function synthesizeRehearsalDialogue(shots,fps,totalSeconds,{espeak='espeak',rate=24000,volume=.74,maxSpeed=2.8,tempRoot=tmpdir()}={}){
  if(espeak!=='espeak')throw new TypeError('only independently installed system eSpeak is supported');
  safe(rate,'PCM sample rate',8000,48000);
  if(!(volume>0&&volume<=1)||!(maxSpeed>=1&&maxSpeed<=4))throw new TypeError('bounded volume and tempo required');
  const cues=planRehearsalDialogue(shots,fps,totalSeconds);
  const len=Math.round(totalSeconds*rate),track=new Float64Array(len),events=[];
- const work=mkdtempSync(join(tmpdir(),'shrimp-voice-rehearsal-'));
+ const work=mkdtempSync(join(tempRoot,'shrimp-voice-rehearsal-'));
  try{
   for(let k=0;k<cues.length;k++){
    const cue=cues[k],file=join(work,'line-'+String(k).padStart(3,'0')+'.wav');
