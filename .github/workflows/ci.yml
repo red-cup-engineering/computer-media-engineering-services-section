@@ -19,5 +19,5 @@ jobs:
       native-no-install: true
       timeout-minutes: 15
       node-version: "24.21.0"
-      test-script: "test:media-plan"
-      node-test: "{\"files\":[\"test/media-plan.test.mjs\"],\"expectedScript\":\"node --test \\\"test/media-plan.test.mjs\\\"\",\"concurrency\":1}"
+      test-script: "test:media-plan-release"
+      node-test: "{\"files\":[\"test/media-plan.test.mjs\",\"test/media-plan-skill.test.mjs\"],\"expectedScript\":\"node --test \\\"test/media-plan.test.mjs\\\" \\\"test/media-plan-skill.test.mjs\\\"\",\"concurrency\":1}"
