@@ -8,8 +8,9 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs",
-    "check:stock-screen": "node scripts/validate-stock-screen.mjs"
+    "test": "node --test --test-concurrency=1 test/*.test.mjs \"services/public-fiction-media-services-section/test/media-plan-render.test.mjs\" \"services/public-fiction-media-services-section/test/microdrama-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/media-plan-receiving-regression.test.mjs\" \"services/public-fiction-media-services-section/test/abyssal-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/psychedelic-animatics.test.mjs\" \"services/public-fiction-media-services-section/test/development-screenplay-previsualization.test.mjs\"",
+    "check:stock-screen": "node scripts/validate-stock-screen.mjs",
+    "test:media-plan-render": "node --test --test-concurrency=1 \"services/public-fiction-media-services-section/test/media-plan-render.test.mjs\" \"services/public-fiction-media-services-section/test/microdrama-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/media-plan-receiving-regression.test.mjs\" \"services/public-fiction-media-services-section/test/abyssal-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/psychedelic-animatics.test.mjs\" \"services/public-fiction-media-services-section/test/development-screenplay-previsualization.test.mjs\""
   },
   "dependencies": {
     "@red-cup-engineering/organizing": "0.1.0",

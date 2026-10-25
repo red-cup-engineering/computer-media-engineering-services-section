@@ -42,7 +42,8 @@ test('frame assets replace the scene art and overlays are drawn over it, as embe
  assert.ok(!framed.includes('<rect width="540" height="960"/>'));
 });
 
-test('the same plan renders to the same frames, geometry, duration and captions the compile receipt promised',{skip:!haveFfmpeg&&'ffmpeg/ffprobe not installed'},t=>{
+test('the same plan renders to the same frames, geometry, duration and captions the compile receipt promised',t=>{
+ assert.ok(haveFfmpeg,'required renderer qualification needs ffmpeg/ffprobe');
  const dir=mkdtempSync(join(tmpdir(),'media-plan-render-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
  const plain=renderMediaPlan(smallPlan(false),{outDir:join(dir,'plain')});
  assert.equal(plain.ok,true,JSON.stringify(plain.refusals));

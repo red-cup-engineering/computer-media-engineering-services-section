@@ -11,10 +11,9 @@ import { sceneSvgAbyssal,sceneSvgAbyssalActorLayer,sceneSvgAbyssalAnimated,scene
 import { composeSourceScore,scoreMidi,scoreWav as renderSourceScore } from '../src/kinetic-score.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
+import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import {synthesizeRehearsalDialogue} from '../src/rehearsal-dialogue.mjs';
+import {planRehearsalDialogue,synthesizeRehearsalDialogue} from '../src/rehearsal-dialogue.mjs';
 
 const requireText = (value, label) => {
   if (typeof value !== 'string' || !value.trim() || value.length > 20000) throw new TypeError(label+' needs bounded nonempty text');
@@ -156,7 +155,9 @@ function run(tool,args,cwd){
    ?['-cpuflags','0','-filter_threads','1','-filter_complex_threads','1',...args]
    :args;
  const p=spawnSync(tool,argsWithCpuPolicy,{cwd,encoding:'utf8',maxBuffer:2*1024*1024,timeout:180000});
- if(p.error||p.status!==0)throw new Error(`${tool} failed: ${(p.stderr||p.error||'unknown error').toString().slice(-1500)}`);
+ if(p.error||p.status!==0)throw new Error(`${tool} failed (status=${p.status}, signal=${p.signal??'none'}): ${(p.stderr||p.error||'no diagnostic output').toString().slice(-1500)}`,{
+  cause:Object.freeze({type:'MediaRendererProcessFailure',tool,exitStatus:p.status,signal:p.signal??null,spawnCode:p.error?.code??null})
+ });
  return p.stdout;
 }
 function makeSrt(shots,sourceFps){
@@ -185,17 +186,30 @@ export function composeShotSvg(baseSvg,assets=[]){
  return body.replace(/<\/svg>\s*$/,overlays+'</svg>');
 }
 
-export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=null,style='abstract',voice='none',motion='still',sourceBytes=null,
+/** Pure supplier admission before a render creates its destination or scratch files. */
+export function preflightProceduralPreview(input,{width=360,fps=18,scene=null,style='abstract',voice='none',motion='still',music=null}={}){
+ if(!['still','character-bob','kinetic-rig'].includes(motion)||(motion!=='still'&&style==='abstract'))throw new TypeError('character motion requires abyssal-glass or abyssal-psychedelic stage');
+ if(!['none','rehearsal'].includes(voice))throw new TypeError('supported voice profile is none or rehearsal');
+ const plan=planProceduralPreview(input,{width,fps,scene,style});
+ const profile=music??(style==='abyssal-psychedelic'?'psychedelic':'harmonic');
+ const score=composeSourceScore(plan.shots,plan.sourceFps,{profile});
+ if(style!=='abstract')for(const [i,shot] of plan.shots.entries())sceneSvgAbyssalAnimated(shot,i,plan.shots.length,plan.sourceWork,{sourceFps:plan.sourceFps,psychedelic:style==='abyssal-psychedelic'});
+ if(voice==='rehearsal')planRehearsalDialogue(plan.shots,plan.sourceFps,plan.totalSeconds);
+ return {plan,score};
+}
+
+export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=null,style='abstract',voice='none',motion='still',music=null,sourceBytes=null,
  captions=null,assets=[],provenance=null}={}){
  const assetsFor=shotId=>assets.filter(a=>a.shotId===shotId);
  if(captions&&(typeof captions.srt!=='string'||captions.burnedIn!==undefined&&typeof captions.burnedIn!=='boolean'))throw new TypeError('captions need compiled srt text');
  if(!['still','character-bob','kinetic-rig'].includes(motion)||(motion!=='still'&&style==='abstract'))throw new TypeError('character motion requires abyssal-glass or abyssal-psychedelic stage');
  if(!['none','rehearsal'].includes(voice))throw new TypeError('supported voice profile is none or rehearsal');
- const plan=planProceduralPreview(input,{width,fps,scene,style}),destination=resolve(requireText(outDir,'output directory'));
+ const {plan,score}=preflightProceduralPreview(input,{width,fps,scene,style,voice,motion,music});
+ const destination=resolve(requireText(outDir,'output directory'));
   const psycho=plan.visualStyle==='abyssal-psychedelic',abyssal=plan.visualStyle!=='abstract';
  if(existsSync(join(destination,'preview.mp4')))throw new Error('refusing to overwrite an existing preview');
  mkdirSync(destination,{recursive:true});
- const temp=mkdtempSync(join(tmpdir(),'fiction-previs-'));
+ const temp=mkdtempSync(join(destination,'.fiction-previs-'));
  try{
   const parts=[],pngs=[],vectorMasters=[];
   for(const [i,shot] of plan.shots.entries()){
@@ -206,8 +220,8 @@ export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=nul
     vectorMasters.push({path:svg,filename:'scene-'+sceneLabel+'.svg',kind:'editable-static-svg'});
     if(abyssal){
      const native=join(temp,'animated-'+sceneLabel+'.svg');
-     writeFileSync(native,sceneSvgAbyssalAnimated(shot,i,plan.shots.length,plan.sourceWork,{sourceFps:plan.sourceFps,psychedelic:psycho}),'utf8');
-     vectorMasters.push({path:native,filename:'animated-scene-'+sceneLabel+'.svg',kind:'animated-svg-smil'});
+     writeFileSync(native,composeShotSvg(sceneSvgAbyssalAnimated(shot,i,plan.shots.length,plan.sourceWork,{sourceFps:plan.sourceFps,psychedelic:psycho}),shotAssets),'utf8');
+     vectorMasters.push({path:native,filename:'animated-scene-'+sceneLabel+'.svg',kind:shotAssets.some(a=>a.role==='frame')?'editable-static-svg':'animated-svg-smil'});
      for(const actor of shot.characterIds){
       const layer=join(temp,'actor-'+sceneLabel+'-'+actor+'.svg');
       writeFileSync(layer,sceneSvgAbyssalActorLayer(shot,actor),'utf8');
@@ -221,9 +235,9 @@ export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=nul
     }
    run('ffmpeg',['-nostdin','-y','-hide_banner','-loglevel','error','-i',svg,'-frames:v','1',png],temp);
    const frames=shot.previewFrames;
-   if((motion==='character-bob'||motion==='kinetic-rig')&&shot.characterIds.length){
+   if((motion==='character-bob'||motion==='kinetic-rig')&&shot.characterIds.length&&!shotAssets.some(a=>a.role==='frame')){
     const backgroundSvg=join(temp,`background-${String(i).padStart(2,'0')}.svg`),backgroundPng=backgroundSvg.replace('.svg','.png');
-    writeFileSync(backgroundSvg,composeShotSvg(sceneSvgAbyssal(shot,i,plan.shots.length,plan.sourceWork,{hideActors:true,psychedelic:psycho}),shotAssets),'utf8');
+    writeFileSync(backgroundSvg,sceneSvgAbyssal(shot,i,plan.shots.length,plan.sourceWork,{hideActors:true,psychedelic:psycho}),'utf8');
     run('ffmpeg',['-nostdin','-y','-hide_banner','-loglevel','error','-i',backgroundSvg,'-frames:v','1',backgroundPng],temp);
     const inputs=[backgroundPng],graph=['[0:v]format=rgba[base]'];let previous='base';
     for(const [j,actor] of shot.characterIds.entries()){
@@ -270,9 +284,19 @@ export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=nul
      graph.push(`[${previous}][optic${i}]overlay=x='6*sin(2*PI*t/13)':y='9*sin(2*PI*t/17)':eval=frame:format=auto[opticalComposite]`);
      previous='opticalComposite';
     }
+    const overlays=shotAssets.filter(a=>a.role==='overlay');
+    if(overlays.length){
+     const overlaySvg=join(temp,`plan-overlay-${i}.svg`),overlayPng=overlaySvg.replace('.svg','.png');
+     writeFileSync(overlaySvg,composeShotSvg('<svg xmlns="http://www.w3.org/2000/svg" width="540" height="960" viewBox="0 0 540 960"></svg>',overlays),'utf8');
+     run('ffmpeg',['-nostdin','-y','-hide_banner','-loglevel','error','-i',overlaySvg,'-frames:v','1','-pix_fmt','rgba',overlayPng],temp);
+     inputs.push(overlayPng);const n=inputs.length-1;
+     graph.push(`[${n}:v]format=rgba[planOverlay]`);
+     graph.push(`[${previous}][planOverlay]overlay=x=0:y=0:format=auto[withPlanOverlay]`);
+     previous='withPlanOverlay';
+    }
     graph.push(`[${previous}]scale=${plan.width}:${plan.height}:flags=lanczos,format=yuv420p[final]`);
     run('ffmpeg',['-nostdin','-y','-hide_banner','-loglevel','error',
-     ...inputs.flatMap(f=>['-loop','1','-framerate',String(plan.outputFps),'-i',f]),
+     ...inputs.flatMap(f=>['-loop','1','-framerate',String(plan.outputFps),'-threads','1','-i',f]),
      '-filter_complex',graph.join(';'),'-map','[final]','-frames:v',String(frames),
      '-c:v','libx264','-x264-params','asm=0','-threads','1','-preset','veryfast','-crf','23','-pix_fmt','yuv420p','-an','-map_metadata','-1',clip],temp);
    }else{
@@ -282,14 +306,13 @@ export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=nul
    }
    parts.push(clip);pngs.push(png);
   }
-  const fileList=parts.map(file=>`file '${file}'`).join('\n')+'\n',concat=join(temp,'files.txt');writeFileSync(concat,fileList);
+  const fileList=parts.map(file=>`file '${basename(file)}'`).join('\n')+'\n',concat=join(temp,'files.txt');writeFileSync(concat,fileList);
   const srt=captions?captions.srt:makeSrt(plan.shots,plan.sourceFps),srtPath=join(temp,'captions.srt');writeFileSync(srtPath,srt,'utf8');
-  const score=composeSourceScore(plan.shots,plan.sourceFps,{profile:psycho?'psychedelic':'harmonic'});
    const audioPath=join(temp,'score.wav'),midiPath=join(temp,'score.mid');
    writeFileSync(audioPath,renderSourceScore(score));writeFileSync(midiPath,scoreMidi(score));
   let performance=null,voicePath=null;
   if(voice==='rehearsal'){
-   performance=synthesizeRehearsalDialogue(plan.shots,plan.sourceFps,plan.totalSeconds);
+   performance=synthesizeRehearsalDialogue(plan.shots,plan.sourceFps,plan.totalSeconds,{tempRoot:temp});
    voicePath=join(temp,'voice-rehearsal.wav');
    writeFileSync(voicePath,performance.wav);
    copyFileSync(voicePath,join(destination,'dialogue-rehearsal.wav'));
@@ -299,7 +322,7 @@ export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=nul
    ...(voicePath?['-i',voicePath]:[]),
    ...(voicePath?['-filter_complex','[1:a]volume=0.22[bed];[2:a]volume=1.0[cast];[bed][cast]amix=inputs=2:duration=first:normalize=0:dropout_transition=0,alimiter=limit=0.92[mixed]',
      '-map','0:v','-map','[mixed]']:[]),
-   ...(captions&&captions.burnedIn===false?[]:['-vf',`subtitles=filename=captions.srt:force_style='FontName=DejaVu Sans,FontSize=${Math.max(13,Math.round(9+plan.width/52))},Outline=2,Shadow=0,MarginV=${Math.max(12,Math.round(16*plan.width/180))},Alignment=2'`]),
+   ...(!srt.trim()||captions&&captions.burnedIn===false?[]:['-vf',`subtitles=filename=captions.srt:force_style='FontName=DejaVu Sans,FontSize=${Math.max(13,Math.round(9+plan.width/52))},Outline=2,Shadow=0,MarginV=${Math.max(12,Math.round(16*plan.width/180))},Alignment=2'`]),
    '-c:v','libx264','-x264-params','asm=0','-threads','1','-preset','veryfast','-crf','22','-pix_fmt','yuv420p',
    '-c:a','aac','-b:a','96k','-ar','24000','-ac','1','-shortest','-map_metadata','-1','-movflags','+faststart',final],temp);
   copyFileSync(srtPath,join(destination,'captions.srt'));
@@ -319,7 +342,7 @@ export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=nul
     node:process.version,
     ffmpeg:run('ffmpeg',['-version'],temp).split('\n')[0].trim(),
     rendererSha256:hash(readFileSync(fileURLToPath(import.meta.url))),
-    reproducibilityPolicy:'ffmpeg cpuflags=0, single filter thread and x264 asm=0 for portable CPU-scalar execution',
+    reproducibilityPolicy:'ffmpeg cpuflags=0, single filter and kinetic-input decoder threads, and x264 asm=0 for portable CPU-scalar execution',
     font:fontPath&&existsSync(fontPath)
       ?{family:'DejaVu Sans',faceSha256:hash(readFileSync(fontPath))}
       :{family:'DejaVu Sans',faceSha256:null,unwitnessed:true}
@@ -335,7 +358,7 @@ export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=nul
        soundtrack:{waveform:'score.wav',waveformSha256:hash(readFileSync(audioPath)),
          midi:'score.mid',midiSha256:hash(readFileSync(midiPath)),midiFormat:'SMF1',sourceFps:score.sourceFps,
          noteCount:score.notes.length,shotMotifs:score.markers,profile:score.profile??'harmonic',
-          ...(psycho?{optophoneticVersion:score.optophoneticVersion}:{})}
+          ...(score.profile==='psychedelic'?{optophoneticVersion:score.optophoneticVersion}:{})}
      },
     performance:performance?{
       profile:'LOCAL_ESPEAK_UNAPPROVED_REHEARSAL',dialogueTrack:'dialogue-rehearsal.wav',dialogueSha256:performance.sha256,

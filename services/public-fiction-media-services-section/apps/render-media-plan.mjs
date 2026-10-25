@@ -22,7 +22,7 @@ import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { compileMediaPlan } from '@red-cup-engineering/computer-media-engineering-services-section/plan/compile';
-import { renderProceduralPreview } from './previsualize-microdrama.mjs';
+import { preflightProceduralPreview, renderProceduralPreview } from './previsualize-microdrama.mjs';
 
 export const RENDER_CONTRACT_ID = 'render-media-plan/1';
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -43,7 +43,9 @@ export function renderMediaPlan(planInput, { outDir } = {}) {
   const { receipt: compileReceipt } = compiled;
   const job = compileReceipt.outputs.deterministic;
   const unsupported = [];
-  if (job.options.music === 'none') unsupported.push(refusal('RENDERER_UNSUPPORTED', 'audio.music.profile', 'the procedural renderer always lays a score; music none is not yet honoured'));
+  try { preflightProceduralPreview(job.input, job.options); }
+  catch (error) { unsupported.push(refusal('RENDERER_UNSUPPORTED', 'deterministic', error.message)); }
+  if (job.options.music === 'none') unsupported.unshift(refusal('RENDERER_UNSUPPORTED', 'audio.music.profile', 'the procedural renderer always lays a score; music none is not yet honoured'));
   if (job.options.voice === 'rehearsal' && spawnSync('espeak', ['--version']).error) unsupported.push(refusal('RENDERER_UNSUPPORTED', 'audio.dialogue.voice', 'rehearsal voice needs espeak on PATH'));
   for (const tool of ['ffmpeg', 'ffprobe']) if (spawnSync(tool, ['-version']).error) unsupported.push(refusal('RENDERER_UNSUPPORTED', tool, `${tool} is not on PATH`));
   if (unsupported.length) return Object.freeze({ ok: false, refusals: Object.freeze(unsupported) });
@@ -51,7 +53,7 @@ export function renderMediaPlan(planInput, { outDir } = {}) {
   if (!outDir) return Object.freeze({ ok: false, refusals: Object.freeze([refusal('OUTDIR_REQUIRED', 'outDir', 'an output directory is required')]) });
 
   const summary = renderProceduralPreview(job.input, {
-    outDir: destination, width: job.options.width, fps: job.options.fps, style: job.options.style, motion: job.options.motion, voice: job.options.voice,
+    outDir: destination, width: job.options.width, fps: job.options.fps, style: job.options.style, motion: job.options.motion, voice: job.options.voice, music: job.options.music,
     sourceBytes: Buffer.from(JSON.stringify(job.input)),
     captions: { srt: job.captions.srt, burnedIn: job.captions.burnedIn },
     assets: job.assets,
@@ -66,7 +68,8 @@ export function renderMediaPlan(planInput, { outDir } = {}) {
     { name: 'geometry-equals-job', ok: measured.width === job.options.width && measured.height === (job.options.width * 16) / 9 },
     { name: 'duration-equals-job', ok: Math.abs(measured.seconds - job.totalSeconds) < 0.25 },
     { name: 'has-audio-track', ok: measured.audio },
-    { name: 'every-caption-cue-written', ok: job.captions.cues.every((c) => srt.includes(c.text)) },
+    { name: 'every-caption-cue-written', ok: srt === job.captions.srt },
+    { name: 'music-profile-equals-job', ok: summary.editableAssets.soundtrack.profile === job.options.music },
     { name: 'preview-hash-in-manifest', ok: summary.previewSha256 === sha(readFileSync(join(destination, 'preview.mp4'))) },
   ];
   const receipt = Object.freeze({
