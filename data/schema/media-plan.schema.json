@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/red-cup-engineering/computer-media-engineering-services-section/data/schema/media-plan.schema.json",
   "title": "MediaPlan",
-  "$comment": "The one upstream a script -> scenes -> shots -> assets -> captions -> audio -> render target -> publication plan travels in, consumed by BOTH Google Flow queue-order compilation and deterministic (procedural) rendering. Structure only: cross-field rules (references resolve, cues inside shots, speakers in cast, paper link present when required, timing without drift) are the precondition in src/media-plan.mjs admitMediaPlan, which answers coded refusals.",
+  "$comment": "The one upstream a script -> scenes -> shots -> assets -> captions -> audio -> render target -> publication plan travels in, consumed by BOTH Google Flow queue-order compilation and deterministic (procedural) rendering. Structure only: cross-field rules (references resolve, cues inside shots, speakers in cast, paper link present when required, timing without drift) are the precondition in src/media-plan.mjs admitMediaPlan, which answers coded/pathful refusals, also enforces every closed object shape, and fills defaults only for absent fields. Per-renderer limits belong to target compilation, not this shared plan shape.",
   "type": "object",
   "required": ["kind", "version", "id", "title", "consumer", "source", "scenes"],
   "additionalProperties": false,
@@ -167,7 +167,7 @@
         "generated": {
           "type": "array", "maxItems": 16,
           "items": { "type": "object", "required": ["completion", "output"], "additionalProperties": false, "properties": { "completion": { "$ref": "#/$defs/ni" }, "output": { "$ref": "#/$defs/ni" }, "prompt": { "$ref": "#/$defs/ni" }, "mimeType": { "type": "string" }, "bytes": { "type": "integer", "minimum": 0 } } },
-          "$comment": "Accepted generations already on file (MediaArtifactWorkCompletion ids); a shot with one is not re-ordered."
+          "$comment": "Accepted generations already on file (MediaArtifactWorkCompletion ids); these are explicit author-accepted shot associations, unlike inferred journal reuse. A matching prompt (when supplied), video MIME (when supplied) and positive bytes (when supplied) are needed to suppress a new video order."
         },
         "assets": {
           "type": "array", "maxItems": 16,
@@ -180,7 +180,7 @@
               "producer": { "type": "object", "required": ["service"], "additionalProperties": false, "properties": { "service": { "type": "string" }, "spec": { "type": "string" } } }
             }
           },
-          "$comment": "Deterministic SVG frames (role frame replaces the scene art) and overlays (composited over it), e.g. from deterministic-report-graphic-service or chart-specification-rendering-service."
+          "$comment": "Deterministic SVG frames (role frame replaces the scene art) and overlays (composited over it). procedural-previs/1 refuses more than one frame per shot; the common plan retains its wider asset capacity. Examples include from deterministic-report-graphic-service or chart-specification-rendering-service."
         }
       }
     }

@@ -5,7 +5,7 @@
   "work": "compile-media-plans-for-every-renderer",
   "claim": "chief-public-services-officer",
   "from": "A script, lesson report or research paper that is to become video, and the renderers that exist (Google Flow queue orders, the procedural microdrama renderer).",
-  "to": "One admitted media plan, identified by content address, with a verifying compilation receipt that each renderer's adapter consumed; or coded refusals naming what in the plan is wrong.",
+  "to": "One admitted media plan, identified by content address, with a completely replay-verified compilation receipt that each renderer's adapter consumed; or coded/pathful refusals distinguishing invalid plan data from capabilities the selected renderer cannot preserve.",
   "skills": [
     "compile-a-media-plan",
     "run-the-media-plan-cycle"
@@ -13,7 +13,7 @@
   "delegation": true,
   "required-evidence": [
     "media-plan.admitted.json",
-    "media-plan.compile-receipt.json (verifies)",
+    "media-plan.compile-receipt.json (all deterministic fields verify using the same supplied completion journal; warnings reviewed after verification)",
     "render-receipt.json or flow-orders.prepared.json"
   ],
   "allowed-effects": [

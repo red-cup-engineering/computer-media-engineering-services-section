@@ -285,3 +285,244 @@ test('the same plan drives both renderers: every shot is ordered for Flow and st
   assert.ok(compilePublication(admitMediaPlan(episodePlan()).plan).publication.title === 'The Second Exit');
   assert.ok(compileDeterministicRenderJob(admitMediaPlan(episodePlan()).plan).job);
 });
+
+// ------------------------------------------------------------------ PR5 source-contract regressions
+// Pure synthetic data supplements, rather than replaces, the existing real fixtures.
+// No subprocess, network, file write, install, rendering or queueing is used here.
+
+const syntheticPlan = () => ({
+  kind: 'MediaPlan', version: 1, id: 'source-contract', title: 'Source contract', consumer: 'source-contract',
+  source: { sourceRevision: 'git:' + 'a'.repeat(40), documents: [{ id: 'paper', role: 'paper', identity: niOf('synthetic paper') }] },
+  scenes: [{ id: 'scene', shots: [{ id: 'shot', frames: 240, action: 'A room.', visual: { prompt: 'A still room.' } }] }],
+});
+const syntheticCompletion = (prompt = 'A still room.') => ({
+  type: 'MediaArtifactWorkCompletion', capability: 'text-to-video', id: niOf('synthetic completion'),
+  prompt: niOf(prompt), promptText: prompt, resource: { aspect: '9:16' },
+  output: { identity: niOf('synthetic video bytes'), mimeType: 'video/mp4', bytes: 21 },
+});
+const syntheticSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 960"><rect width="540" height="960"/></svg>';
+const withCard = (plan) => ({ ...plan, links: [{ rel: 'paper', documentId: 'paper' }], endCard: {} });
+const at = (value, parts) => parts.reduce((node, key) => node[key], value);
+const pathOf = (parts) => parts.reduce((path, key) => typeof key === 'number' ? path + '[' + key + ']' : path + (path ? '.' : '') + key, '');
+
+function richStructuralPlan() {
+  const plan = withCard(syntheticPlan());
+  plan.source.documents[0].url = 'https://example.org/paper';
+  plan.characters = [{ id: 'actor', name: 'Actor', synthetic: true }];
+  plan.locations = [{ id: 'room', name: 'Room' }];
+  plan.beats = [{ id: 'beat', causeBeatId: 'seed', action: 'Enter', consequence: 'Arrive' }];
+  plan.audio = { music: { profile: 'harmonic' }, dialogue: { voice: 'none' } };
+  plan.captions = { derive: 'auto', burnedIn: true };
+  plan.render = { targets: ['deterministic', 'flow'] };
+  plan.publication = { privacy: 'private', requirePaperLink: true };
+  const shot = plan.scenes[0].shots[0];
+  Object.assign(shot, {
+    beatId: 'beat', locationId: 'room', characterIds: ['actor'],
+    dialogue: [{ speakerId: 'actor', startFrame: 0, endFrame: 30, text: 'Hello.' }],
+    captions: [{ startFrame: 0, endFrame: 30, text: 'Hello.' }],
+  });
+  Object.assign(shot.visual, {
+    referenceImages: [{ label: 'actor', kind: 'character', identity: niOf('reference') }],
+    generated: [{ completion: niOf('accepted completion'), output: niOf('accepted output') }],
+    assets: [{ id: 'frame', role: 'frame', svg: syntheticSvg, producer: { service: 'synthetic-test' } }],
+  });
+  return plan;
+}
+
+// Schema traversal only enumerates authored test cases. It is not an instance validator.
+function structuralCases(schema, input) {
+  const closed = [], defaults = [];
+  function visit(node, value, parts) {
+    if (!node || typeof node !== 'object') return;
+    if (node.$ref) node = { ...schema.$defs[node.$ref.slice('#/$defs/'.length)], ...Object.fromEntries(Object.entries(node).filter(([key]) => key !== '$ref')) };
+    if (node.type === 'object' && value && typeof value === 'object' && !Array.isArray(value)) {
+      if (node.additionalProperties === false || node.unevaluatedProperties === false) closed.push({ parts, fields: Object.keys(node.properties) });
+      for (const [key, child] of Object.entries(node.properties ?? {})) {
+        if (child && typeof child === 'object' && Object.hasOwn(child, 'default')) defaults.push({ parts: [...parts, key], value: child.default });
+        if (Object.hasOwn(value, key)) visit(child, value[key], [...parts, key]);
+      }
+    }
+    if (node.type === 'array' && Array.isArray(value)) for (const [i, child] of value.entries()) visit(node.items, child, [...parts, i]);
+  }
+  visit(schema, input, []);
+  return { closed, defaults };
+}
+
+test('schema-closed object boundaries refuse unknown fields at their original paths', () => {
+  const schema = JSON.parse(readFileSync(new URL('../data/schema/media-plan.schema.json', import.meta.url), 'utf8'));
+  const plan = richStructuralPlan();
+  assert.equal(admitMediaPlan(plan).ok, true);
+  const { closed } = structuralCases(schema, plan);
+  assert.equal(closed.length, 23, 'all root, nested, array-element and audio object surfaces are represented');
+  for (const { parts, fields } of closed) {
+    assert.ok(fields.length, pathOf(parts));
+    const changed = structuredClone(plan);
+    at(changed, parts).undeclared = 'must not disappear';
+    const result = admitMediaPlan(changed);
+    assert.equal(result.ok, false, pathOf(parts));
+    assert.ok(result.refusals.some((r) => r.code === 'FIELD_UNKNOWN' && r.path === pathOf([...parts, 'undeclared'])), pathOf(parts));
+  }
+  const conditioned = syntheticPlan();
+  conditioned.scenes[0].shots[0].visual.firstFrame = niOf('first frame');
+  assert.ok(compileMediaPlan(conditioned).refusals.some((r) => r.code === 'FIELD_UNKNOWN' && r.path === 'scenes[0].shots[0].visual.firstFrame'));
+});
+
+test('schema defaults apply to absence, never null; nested audio and NI fields keep their declared types', () => {
+  const schema = JSON.parse(readFileSync(new URL('../data/schema/media-plan.schema.json', import.meta.url), 'utf8'));
+  const plan = richStructuralPlan();
+  for (const { parts, value } of structuralCases(schema, plan).defaults) {
+    const explicit = structuredClone(plan), omitted = structuredClone(plan), nulled = structuredClone(plan);
+    at(explicit, parts.slice(0, -1))[parts.at(-1)] = value;
+    delete at(omitted, parts.slice(0, -1))[parts.at(-1)];
+    at(nulled, parts.slice(0, -1))[parts.at(-1)] = null;
+    assert.deepEqual(admitMediaPlan(explicit), admitMediaPlan(omitted), pathOf(parts));
+    assert.equal(admitMediaPlan(nulled).ok, false, pathOf(parts));
+  }
+  for (const field of ['music', 'dialogue']) for (const value of [null, [], 'ignored', 2, false]) {
+    const changed = syntheticPlan(); changed.audio = { [field]: value };
+    assert.ok(admitMediaPlan(changed).refusals.some((r) => r.code === 'FIELD_OBJECT' && r.path === 'audio.' + field));
+  }
+  const changed = richStructuralPlan();
+  changed.scenes[0].shots[0].visual.assets[0].mediaType = null;
+  assert.equal(admitMediaPlan(changed).ok, false);
+  const arrayIdentity = syntheticPlan(); arrayIdentity.source.documents[0].identity = [niOf('coerced')];
+  assert.ok(admitMediaPlan(arrayIdentity).refusals.some((r) => r.code === 'LOCATOR_IDENTITY'));
+  // Validation precedes normalization, including coercive derived operations.
+  for (const targets of [['flow', { toString: null }], ['flow', []], ['flow', null], ['flow', 1], ['flow', true]]) {
+    const malformed = syntheticPlan(); malformed.render = { targets };
+    const result = admitMediaPlan(malformed);
+    assert.equal(result.ok, false);
+    assert.ok(result.refusals.some((r) => r.code === 'UNKNOWN_TARGET' && r.path === 'render.targets'));
+  }
+  const malformed = syntheticPlan(), nonText = { toString: null };
+  malformed.render = { targets: ['flow', nonText], width: nonText };
+  malformed.source.documents[0].identity = nonText;
+  malformed.scenes[0].shots[0].frames = nonText;
+  malformed.scenes[0].shots[0].characterIds = ['actor', nonText];
+  malformed.scenes[0].shots[0].dialogue = [{ speakerId: nonText, startFrame: nonText, endFrame: nonText, text: nonText }];
+  malformed.publication = { description: nonText, tags: ['valid', nonText] };
+  const result = admitMediaPlan(malformed);
+  assert.equal(result.ok, false);
+  for (const path of ['render.targets', 'render.width', 'source.documents[0].identity', 'scenes[0].shots[0].frames', 'publication.description', 'publication.tags'])
+    assert.ok(result.refusals.some((r) => r.path === path), path + ' remains an explicit refusal, not a normalization exception');
+
+});
+
+test('journal reuse requires compatible video evidence, not a matching prompt alone', () => {
+  const plan = syntheticPlan(), valid = syntheticCompletion();
+  const compile = (completions) => compileMediaPlan(plan, { targets: ['flow'], completions });
+  assert.equal(compile([valid]).receipt.outputs.flow.satisfied.length, 1);
+  assert.equal(compile([valid]).receipt.outputs.flow.orders.length, 0);
+  const mutations = [
+    (c) => { c.capability = 'text-to-image'; c.output.mimeType = 'image/png'; },
+    (c) => { delete c.id; }, (c) => { c.id = 'unaddressed'; },
+    (c) => { delete c.output; }, (c) => { delete c.output.identity; },
+    (c) => { c.output.identity = [niOf('not a string')]; },
+    (c) => { c.output.bytes = 0; }, (c) => { delete c.output.bytes; },
+    (c) => { c.output.mimeType = 'image/jpeg'; },
+    (c) => { delete c.resource; }, (c) => { c.resource.aspect = null; },
+    (c) => { c.resource.aspect = '16:9'; },
+    (c) => { c.promptText = 'Different prompt.'; },
+    (c) => { c.capability = 'video-generation-mode-unverified'; },
+  ];
+  for (const mutate of mutations) {
+    const changed = structuredClone(valid); mutate(changed);
+    const result = compile([changed]);
+    assert.equal(result.ok, true);
+    assert.equal(result.receipt.outputs.flow.orders.length, 1, mutate.toString());
+    assert.equal(result.receipt.outputs.flow.satisfied.length, 0);
+  }
+  const accepted = syntheticPlan();
+  accepted.scenes[0].shots[0].visual.generated = [{ completion: valid.id, output: valid.output.identity }];
+  assert.equal(compileMediaPlan(accepted, { targets: ['flow'] }).receipt.outputs.flow.satisfied.length, 1, 'explicit author acceptance retains its existing shape');
+  accepted.scenes[0].shots[0].visual.generated[0].mimeType = 'image/png';
+  assert.equal(compileMediaPlan(accepted, { targets: ['flow'] }).receipt.outputs.flow.orders.length, 1);
+});
+
+test('generated end-card identity preserves author IDs and binds its own frame asset', () => {
+  const plan = withCard(syntheticPlan());
+  plan.scenes[0].shots[0].id = 'end-card';
+  plan.scenes[0].shots[0].visual.assets = [{ id: 'end-card-frame', role: 'overlay', svg: syntheticSvg }];
+  plan.scenes[0].shots.push({ id: 'end-card-2', frames: 240, action: 'Another room.' });
+  const compiled = compileMediaPlan(plan, { targets: ['deterministic'] });
+  assert.equal(compiled.ok, true, JSON.stringify(compiled.refusals));
+  const job = compiled.receipt.outputs.deterministic;
+  assert.deepEqual(job.input.episode.shots.map((s) => s.id), ['end-card', 'end-card-2', 'end-card-3']);
+  assert.deepEqual(job.assets.map((a) => a.shotId), ['end-card', 'end-card-3']);
+  assert.ok(compiled.receipt.checks.every((c) => c.ok));
+  assert.equal(verifyCompilationReceipt(plan, compiled.receipt).ok, true);
+});
+
+test('procedural-previs limits are target-specific and never truncate the shared plan', () => {
+  const landscape = syntheticPlan(); landscape.aspect = '16:9';
+  assert.equal(admitMediaPlan(landscape).ok, true);
+  assert.equal(compileMediaPlan(landscape, { targets: ['flow'] }).ok, true);
+  assert.ok(compileMediaPlan(landscape, { targets: ['deterministic'] }).refusals.some((r) => r.code === 'RENDERER_UNSUPPORTED' && r.path === 'aspect'));
+  for (const [field, maximum] of [['characterIds', 5], ['dialogue', 12], ['frames', 1]]) {
+    const candidate = syntheticPlan(), shot = candidate.scenes[0].shots[0];
+    const fill = (count) => {
+      if (field === 'characterIds') shot.characterIds = Array.from({ length: count }, (_, i) => 'actor-' + i);
+      if (field === 'dialogue') {
+        shot.characterIds = ['actor'];
+        shot.dialogue = Array.from({ length: count }, (_, i) => ({ speakerId: 'actor', startFrame: i, endFrame: i + 1, text: 'Line ' + i }));
+      }
+      if (field === 'frames') shot.visual.assets = Array.from({ length: count }, (_, i) => ({ id: 'frame-' + i, role: 'frame', svg: syntheticSvg }));
+    };
+    fill(maximum);
+    assert.equal(compileMediaPlan(candidate, { targets: ['deterministic'] }).ok, true, field);
+    fill(maximum + 1);
+    assert.equal(admitMediaPlan(candidate).ok, true, field);
+    assert.equal(compileMediaPlan(candidate, { targets: ['flow'] }).ok, true, field);
+    const result = compileMediaPlan(candidate, { targets: ['deterministic'] });
+    assert.ok(result.refusals.some((r) => r.code === 'RENDERER_UNSUPPORTED'), field);
+  }
+  const many = syntheticPlan();
+  const shots = (start, count) => Array.from({ length: count }, (_, i) => ({ id: 'shot-' + (start + i), frames: 240, action: 'A room.' }));
+  many.scenes[0].shots = shots(0, 100);
+  assert.equal(compileMediaPlan(many, { targets: ['deterministic'] }).ok, true);
+  assert.ok(compileMediaPlan(withCard(many), { targets: ['deterministic'] }).refusals.some((r) => r.code === 'RENDERER_UNSUPPORTED' && r.path === 'scenes'));
+  many.scenes.push({ id: 'second-scene', shots: shots(100, 1) });
+  assert.equal(admitMediaPlan(many).ok, true);
+  assert.equal(compileMediaPlan(many, { targets: ['flow'] }).ok, true);
+  assert.equal(compileMediaPlan(many, { targets: ['deterministic'] }).ok, false);
+  many.scenes.pop(); many.scenes[0].shots.pop();
+  assert.equal(compileMediaPlan(withCard(many), { targets: ['deterministic'] }).ok, true, '99 author shots plus card is the exact boundary');
+});
+
+test('full receipt replay protects warnings and every carried authoritative field', () => {
+  const plan = syntheticPlan(); plan.scenes[0].shots[0].visual.prompt = 'A room. Text overlays appear.';
+  const completion = syntheticCompletion(plan.scenes[0].shots[0].visual.prompt);
+  const receipt = compileMediaPlan(plan, { targets: ['flow'], completions: [completion] }).receipt;
+  assert.equal(receipt.warnings[0].code, 'GENERATIVE_TEXT_REQUEST');
+  assert.equal(verifyCompilationReceipt(plan, receipt, { completions: [completion] }).ok, true);
+  assert.equal(verifyCompilationReceipt(plan, receipt).ok, false, 'the same journal is required for reuse replay');
+  const mutations = [
+    (r) => { r.warnings = []; }, (r) => { delete r.warnings; },
+    (r) => { r.checks = []; }, (r) => { r.checks[0].ok = false; },
+    (r) => { r.version = 2; }, (r) => { r.effects = 'queue'; },
+    (r) => { r.planSlug = 'other'; }, (r) => { delete r.options; },
+    (r) => { r.options = null; }, (r) => { delete r.options.model; },
+    (r) => { r.options.model = []; }, (r) => { r.options.maxClipSeconds = null; },
+    (r) => { r.options.completionsConsulted = []; }, (r) => { r.options.extra = true; },
+    (r) => { delete r.targets; }, (r) => { r.targets = []; },
+    (r) => { r.targets = 'flow'; }, (r) => { r.extra = 'not in the receipt'; },
+    (r) => { delete r.outputs; },
+  ];
+  for (const mutate of mutations) {
+    const changed = structuredClone(receipt); mutate(changed);
+    assert.equal(verifyCompilationReceipt(plan, changed, { completions: [completion] }).ok, false, mutate.toString());
+  }
+  const reordered = Object.fromEntries(Object.entries(receipt).reverse());
+  assert.equal(verifyCompilationReceipt(plan, reordered, { completions: [completion] }).ok, true);
+});
+
+test('malformed compile options yield coded refusals instead of runtime exceptions', () => {
+  const plan = syntheticPlan();
+  for (const options of [null, [], { targets: null }, { targets: [] }, { targets: 'flow' }, { targets: ['flow', 'flow'] },
+    { model: null }, { model: '' }, { maxClipSeconds: null }, { maxClipSeconds: 0 }, { maxClipSeconds: 1.5 }, { completions: null }, { completions: {} }]) {
+    const result = compileMediaPlan(plan, options);
+    assert.equal(result.ok, false);
+    assert.ok(result.refusals.every((r) => r.code && typeof r.path === 'string'));
+  }
+  assert.equal(compileMediaPlan(plan, { targets: ['unknown'] }).refusals[0].code, 'TARGET_NOT_PLANNED');
+});

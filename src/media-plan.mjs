@@ -25,6 +25,8 @@ const SOURCE_REVISION = /^(?:sha256:[a-f0-9]{64}|git:[a-f0-9]{40}|ni:\/\/\/sha-2
 const DOI = /^10\.\d{4,9}\/[^\s<>"]+$/u;
 const LANGUAGE = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u;
 const URL_HTTPS = /^https:\/\/[^\s<>"]+$/u;
+const isNi = (value) => typeof value === 'string' && NI.test(value);
+const whenAbsent = (value, fallback) => value === undefined ? fallback : value;
 
 export const ASPECTS = Object.freeze(['9:16', '16:9']);
 export const LINK_RELS = Object.freeze(['paper', 'source', 'dataset', 'series', 'other']);
@@ -52,7 +54,7 @@ export const sha256Hex = (data) => createHash('sha256').update(data).digest('hex
 /** The content address (RFC 6920 NI, as the Group writes it) of some bytes or text. */
 export const niOf = (data) => `ni:///sha-256;${createHash('sha256').update(data).digest('base64url')}`;
 export const niFromHex = (hex) => `ni:///sha-256;${Buffer.from(hex, 'hex').toString('base64url')}`;
-export const hexFromNi = (ni) => (NI.test(ni) ? Buffer.from(ni.slice('ni:///sha-256;'.length), 'base64url').toString('hex') : null);
+export const hexFromNi = (ni) => (isNi(ni) ? Buffer.from(ni.slice('ni:///sha-256;'.length), 'base64url').toString('hex') : null);
 
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const deepFreeze = (v) => {
@@ -66,6 +68,9 @@ const deepFreeze = (v) => {
 class Refusals {
   constructor() { this.list = []; }
   add(code, path, message) { this.list.push(Object.freeze({ code, path, message })); }
+  closed(value, path, fields) {
+    for (const key of Object.keys(value)) if (!fields.includes(key)) this.add('FIELD_UNKNOWN', path ? `${path}.${key}` : key, 'field is not declared by the MediaPlan schema');
+  }
   text(value, path, { max = 20000, required = true } = {}) {
     if (value === undefined && !required) return undefined;
     if (typeof value !== 'string' || !value.trim() || value.length > max) {
@@ -112,7 +117,7 @@ export function svgIsSelfContained(svg) {
 
 function admitLocator(r, value, path, { requireOne = true } = {}) {
   const out = {};
-  if (value.identity !== undefined) { if (NI.test(value.identity)) out.identity = value.identity; else r.add('LOCATOR_IDENTITY', `${path}.identity`, 'identity must be an exact sha-256 NI (ni:///sha-256;...)'); }
+  if (value.identity !== undefined) { if (isNi(value.identity)) out.identity = value.identity; else r.add('LOCATOR_IDENTITY', `${path}.identity`, 'identity must be an exact sha-256 NI (ni:///sha-256;...)'); }
   if (value.url !== undefined) { if (typeof value.url === 'string' && URL_HTTPS.test(value.url) && value.url.length <= 2000) out.url = value.url; else r.add('LOCATOR_URL', `${path}.url`, 'url must be an https URL'); }
   if (value.doi !== undefined) { if (typeof value.doi === 'string' && DOI.test(value.doi)) out.doi = value.doi; else r.add('LOCATOR_DOI', `${path}.doi`, 'doi must look like 10.<registrant>/<suffix>, without a resolver prefix'); }
   if (requireOne && !out.identity && !out.url && !out.doi) r.add('LOCATOR_MISSING', path, 'needs at least one of identity (NI), url or doi');
@@ -125,6 +130,7 @@ function admitCues(r, cues, path, frames, cast, { speaker }) {
   return cues.map((cue, i) => {
     const p = `${path}[${i}]`;
     if (!isObject(cue)) { r.add('FIELD_OBJECT', p, 'must be an object'); return null; }
+    r.closed(cue, p, ['speakerId', 'startFrame', 'endFrame', 'text']);
     const out = {};
     if (speaker) {
       out.speakerId = r.slug(cue.speakerId, `${p}.speakerId`);
@@ -141,6 +147,7 @@ function admitCues(r, cues, path, frames, cast, { speaker }) {
 
 function admitShot(r, raw, path, ctx) {
   if (!isObject(raw)) { r.add('FIELD_OBJECT', path, 'shot must be an object'); return null; }
+  r.closed(raw, path, ['id', 'beatId', 'locationId', 'frames', 'characterIds', 'camera', 'action', 'claim', 'ambience', 'dialogue', 'captions', 'visual']);
   const shot = {};
   shot.id = r.slug(raw.id, `${path}.id`);
   if (shot.id) { if (ctx.shotIds.has(shot.id)) r.add('DUPLICATE_ID', `${path}.id`, `shot ${shot.id} is repeated`); ctx.shotIds.add(shot.id); }
@@ -171,6 +178,7 @@ function admitShot(r, raw, path, ctx) {
 
   const v = raw.visual === undefined ? {} : raw.visual;
   if (!isObject(v)) { r.add('FIELD_OBJECT', `${path}.visual`, 'must be an object'); return shot; }
+  r.closed(v, `${path}.visual`, ['mode', 'prompt', 'minSeconds', 'referenceImages', 'generated', 'assets']);
   const visual = { mode: v.mode === undefined ? 'either' : r.oneOf(v.mode, `${path}.visual.mode`, VISUAL_MODES), assets: [] };
   if (v.prompt !== undefined) visual.prompt = r.text(v.prompt, `${path}.visual.prompt`, { max: 6000 });
   if (v.minSeconds !== undefined) visual.minSeconds = r.int(v.minSeconds, `${path}.visual.minSeconds`, 1, 60);
@@ -181,11 +189,12 @@ function admitShot(r, raw, path, ctx) {
       visual.referenceImages = v.referenceImages.map((img, i) => {
         const p = `${path}.visual.referenceImages[${i}]`;
         if (!isObject(img)) { r.add('FIELD_OBJECT', p, 'must be an object'); return null; }
+        r.closed(img, p, ['label', 'kind', 'identity']);
         const label = r.slug(img.label, `${p}.label`);
         if (label && labels.has(label)) r.add('DUPLICATE_ID', `${p}.label`, 'reference labels are unique');
         labels.add(label);
         const kind = r.oneOf(img.kind, `${p}.kind`, ['character', 'environment', 'object']);
-        if (!NI.test(img.identity ?? '')) r.add('LOCATOR_IDENTITY', `${p}.identity`, 'reference image identity must be an exact sha-256 NI');
+        if (!isNi(img.identity)) r.add('LOCATOR_IDENTITY', `${p}.identity`, 'reference image identity must be an exact sha-256 NI');
         return { label, kind, identity: img.identity };
       }).filter(Boolean);
     }
@@ -195,9 +204,10 @@ function admitShot(r, raw, path, ctx) {
     else visual.generated = v.generated.map((g, i) => {
       const p = `${path}.visual.generated[${i}]`;
       if (!isObject(g)) { r.add('FIELD_OBJECT', p, 'must be an object'); return null; }
-      for (const f of ['completion', 'output']) if (!NI.test(g[f] ?? '')) r.add('LOCATOR_IDENTITY', `${p}.${f}`, `${f} must be an exact sha-256 NI`);
+      r.closed(g, p, ['completion', 'output', 'prompt', 'mimeType', 'bytes']);
+      for (const f of ['completion', 'output']) if (!isNi(g[f])) r.add('LOCATOR_IDENTITY', `${p}.${f}`, `${f} must be an exact sha-256 NI`);
       const out = { completion: g.completion, output: g.output };
-      if (g.prompt !== undefined) { if (NI.test(g.prompt)) out.prompt = g.prompt; else r.add('LOCATOR_IDENTITY', `${p}.prompt`, 'prompt must be an exact sha-256 NI'); }
+      if (g.prompt !== undefined) { if (isNi(g.prompt)) out.prompt = g.prompt; else r.add('LOCATOR_IDENTITY', `${p}.prompt`, 'prompt must be an exact sha-256 NI'); }
       if (g.mimeType !== undefined) out.mimeType = r.text(g.mimeType, `${p}.mimeType`, { max: 100 });
       if (g.bytes !== undefined) out.bytes = r.int(g.bytes, `${p}.bytes`, 0, Number.MAX_SAFE_INTEGER);
       return out;
@@ -209,17 +219,18 @@ function admitShot(r, raw, path, ctx) {
     visual.assets = assets.map((a, i) => {
       const p = `${path}.visual.assets[${i}]`;
       if (!isObject(a)) { r.add('FIELD_OBJECT', p, 'must be an object'); return null; }
-      const out = { id: r.slug(a.id, `${p}.id`), role: r.oneOf(a.role, `${p}.role`, ASSET_ROLES), mediaType: r.oneOf(a.mediaType ?? 'image/svg+xml', `${p}.mediaType`, ['image/svg+xml']) };
+      r.closed(a, p, ['id', 'role', 'mediaType', 'svg', 'identity', 'producer']);
+      const out = { id: r.slug(a.id, `${p}.id`), role: r.oneOf(a.role, `${p}.role`, ASSET_ROLES), mediaType: r.oneOf(whenAbsent(a.mediaType, 'image/svg+xml'), `${p}.mediaType`, ['image/svg+xml']) };
       if (out.id) { const key = `${shot.id}/${out.id}`; if (ctx.assetIds.has(key)) r.add('DUPLICATE_ID', `${p}.id`, `asset ${out.id} is repeated in shot`); ctx.assetIds.add(key); }
       if (a.svg !== undefined) {
         if (typeof a.svg === 'string' && a.svg.length <= 400000 && svgIsSelfContained(a.svg)) out.svg = a.svg;
         else r.add('SVG_NOT_SELF_CONTAINED', `${p}.svg`, 'inline SVG must be an <svg> document of at most 400000 characters with no script, foreign content, event handlers or external references');
       }
-      if (a.identity !== undefined) { if (NI.test(a.identity)) out.identity = a.identity; else r.add('LOCATOR_IDENTITY', `${p}.identity`, 'identity must be an exact sha-256 NI'); }
+      if (a.identity !== undefined) { if (isNi(a.identity)) out.identity = a.identity; else r.add('LOCATOR_IDENTITY', `${p}.identity`, 'identity must be an exact sha-256 NI'); }
       if (out.svg === undefined && out.identity === undefined) r.add('ASSET_UNADDRESSED', p, 'an asset needs inline svg or a content-addressed identity');
       if (out.svg !== undefined && out.identity !== undefined && niOf(out.svg) !== out.identity) r.add('ASSET_IDENTITY_MISMATCH', p, 'identity is not the SHA-256 NI of the inline svg');
       if (a.producer !== undefined) {
-        if (isObject(a.producer)) out.producer = { service: r.text(a.producer.service, `${p}.producer.service`, { max: 200 }), ...(a.producer.spec !== undefined ? { spec: r.text(a.producer.spec, `${p}.producer.spec`, { max: 2000 }) } : {}) };
+        if (isObject(a.producer)) { r.closed(a.producer, `${p}.producer`, ['service', 'spec']); out.producer = { service: r.text(a.producer.service, `${p}.producer.service`, { max: 200 }), ...(a.producer.spec !== undefined ? { spec: r.text(a.producer.spec, `${p}.producer.spec`, { max: 2000 }) } : {}) }; }
         else r.add('FIELD_OBJECT', `${p}.producer`, 'must be an object');
       }
       return out;
@@ -236,6 +247,7 @@ function admitShot(r, raw, path, ctx) {
 export function admitMediaPlan(input) {
   const r = new Refusals();
   if (!isObject(input)) return Object.freeze({ ok: false, refusals: Object.freeze([Object.freeze({ code: 'PLAN_NOT_OBJECT', path: '', message: 'a media plan is a JSON object' })]) });
+  r.closed(input, '', ['kind', 'version', 'id', 'title', 'language', 'consumer', 'purpose', 'destination', 'promptRevision', 'aspect', 'fps', 'source', 'links', 'characters', 'locations', 'beats', 'scenes', 'audio', 'captions', 'endCard', 'render', 'publication']);
   if (input.kind !== MEDIA_PLAN_KIND) r.add('PLAN_KIND', 'kind', `kind must be ${MEDIA_PLAN_KIND}`);
   if (input.version !== MEDIA_PLAN_VERSION) r.add('PLAN_VERSION', 'version', `version must be ${MEDIA_PLAN_VERSION}`);
   const plan = { kind: MEDIA_PLAN_KIND, version: MEDIA_PLAN_VERSION };
@@ -245,11 +257,12 @@ export function admitMediaPlan(input) {
   plan.consumer = r.text(input.consumer, 'consumer', { max: 200 });
   if (plan.consumer && !/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(plan.consumer)) r.add('FIELD_CONSUMER', 'consumer', 'consumer is a stable name ([A-Za-z0-9._-]) as Flow journals it');
   for (const f of ['purpose', 'destination', 'promptRevision']) if (input[f] !== undefined) plan[f] = r.text(input[f], f, { max: 500 });
-  plan.aspect = r.oneOf(input.aspect ?? '9:16', 'aspect', ASPECTS);
-  plan.fps = r.int(input.fps ?? 30, 'fps', 1, 120);
+  plan.aspect = r.oneOf(whenAbsent(input.aspect, '9:16'), 'aspect', ASPECTS);
+  plan.fps = r.int(whenAbsent(input.fps, 30), 'fps', 1, 120);
 
   // Provenance of the plan's own source documents.
   const src = isObject(input.source) ? input.source : (r.add('FIELD_OBJECT', 'source', 'source provenance is required'), {});
+  r.closed(src, 'source', ['sourceRevision', 'originRef', 'documents']);
   plan.source = {};
   if (typeof src.sourceRevision === 'string' && SOURCE_REVISION.test(src.sourceRevision)) plan.source.sourceRevision = src.sourceRevision;
   else r.add('SOURCE_REVISION_INEXACT', 'source.sourceRevision', 'needs an exact sha256:<hex>, git:<40 hex> or sha-256 NI source revision');
@@ -260,6 +273,7 @@ export function admitMediaPlan(input) {
   plan.source.documents = docs.slice(0, 32).map((d, i) => {
     const p = `source.documents[${i}]`;
     if (!isObject(d)) { r.add('FIELD_OBJECT', p, 'must be an object'); return null; }
+    r.closed(d, p, ['id', 'role', 'title', 'rightsRef', 'citation', 'identity', 'url', 'doi']);
     const out = { id: r.slug(d.id, `${p}.id`), role: r.slug(d.role, `${p}.role`) };
     if (out.id) { if (docIds.has(out.id)) r.add('DUPLICATE_ID', `${p}.id`, `document ${out.id} is repeated`); docIds.add(out.id); }
     const loc = admitLocator(r, d, p);
@@ -275,6 +289,7 @@ export function admitMediaPlan(input) {
   plan.links = (Array.isArray(links) ? links : []).slice(0, 16).map((l, i) => {
     const p = `links[${i}]`;
     if (!isObject(l)) { r.add('FIELD_OBJECT', p, 'must be an object'); return null; }
+    r.closed(l, p, ['rel', 'documentId', 'label', 'identity', 'url', 'doi']);
     const out = { rel: r.oneOf(l.rel, `${p}.rel`, LINK_RELS) };
     if (l.documentId !== undefined) {
       out.documentId = r.slug(l.documentId, `${p}.documentId`);
@@ -292,6 +307,7 @@ export function admitMediaPlan(input) {
   plan.characters = (Array.isArray(characters) ? characters : []).slice(0, 32).map((c, i) => {
     const p = `characters[${i}]`;
     if (!isObject(c)) { r.add('FIELD_OBJECT', p, 'must be an object'); return null; }
+    r.closed(c, p, ['id', 'name', 'synthetic', 'visualRef', 'voiceRef']);
     const out = { id: r.slug(c.id, `${p}.id`) };
     if (out.id) { if (ctx.characterIds.has(out.id)) r.add('DUPLICATE_ID', `${p}.id`, `character ${out.id} is repeated`); ctx.characterIds.add(out.id); }
     for (const f of ['name', 'visualRef', 'voiceRef']) if (c[f] !== undefined) out[f] = r.text(c[f], `${p}.${f}`, { max: 500 });
@@ -303,6 +319,7 @@ export function admitMediaPlan(input) {
   plan.locations = (Array.isArray(locations) ? locations : []).slice(0, 64).map((l, i) => {
     const p = `locations[${i}]`;
     if (!isObject(l)) { r.add('FIELD_OBJECT', p, 'must be an object'); return null; }
+    r.closed(l, p, ['id', 'name']);
     const out = { id: r.slug(l.id, `${p}.id`) };
     if (out.id) { if (ctx.locationIds.has(out.id)) r.add('DUPLICATE_ID', `${p}.id`, `location ${out.id} is repeated`); ctx.locationIds.add(out.id); }
     if (l.name !== undefined) out.name = r.text(l.name, `${p}.name`, { max: 200 });
@@ -313,6 +330,7 @@ export function admitMediaPlan(input) {
   plan.beats = (Array.isArray(beats) ? beats : []).slice(0, 100).map((b, i) => {
     const p = `beats[${i}]`;
     if (!isObject(b)) { r.add('FIELD_OBJECT', p, 'must be an object'); return null; }
+    r.closed(b, p, ['id', 'causeBeatId', 'action', 'consequence', 'kind', 'question']);
     const out = { id: r.slug(b.id, `${p}.id`), causeBeatId: r.slug(b.causeBeatId, `${p}.causeBeatId`), action: r.text(b.action, `${p}.action`, { max: 2000 }), consequence: r.text(b.consequence, `${p}.consequence`, { max: 2000 }) };
     if (out.id && out.causeBeatId) {
       if (ctx.beatIds.has(out.id) || out.id === out.causeBeatId) r.add('DUPLICATE_ID', `${p}.id`, `beat ${out.id} is repeated or self-caused`);
@@ -330,6 +348,7 @@ export function admitMediaPlan(input) {
   plan.scenes = scenes.slice(0, 50).map((s, i) => {
     const p = `scenes[${i}]`;
     if (!isObject(s)) { r.add('FIELD_OBJECT', p, 'must be an object'); return null; }
+    r.closed(s, p, ['id', 'title', 'shots']);
     const out = { id: r.slug(s.id, `${p}.id`) };
     if (out.id) { if (sceneIds.has(out.id)) r.add('DUPLICATE_ID', `${p}.id`, `scene ${out.id} is repeated`); sceneIds.add(out.id); }
     if (s.title !== undefined) out.title = r.text(s.title, `${p}.title`, { max: 200 });
@@ -342,43 +361,57 @@ export function admitMediaPlan(input) {
   // Audio, captions, end card, render, publication.
   const a = input.audio === undefined ? {} : input.audio;
   if (!isObject(a)) r.add('FIELD_OBJECT', 'audio', 'must be an object');
+  else r.closed(a, 'audio', ['music', 'dialogue']);
+  for (const [field, fields] of [['music', ['profile']], ['dialogue', ['voice']]]) {
+    if (a?.[field] !== undefined) {
+      if (!isObject(a[field])) r.add('FIELD_OBJECT', `audio.${field}`, 'must be an object');
+      else r.closed(a[field], `audio.${field}`, fields);
+    }
+  }
   plan.audio = {
-    music: { profile: r.oneOf(a?.music?.profile ?? 'harmonic', 'audio.music.profile', MUSIC_PROFILES) },
-    dialogue: { voice: r.oneOf(a?.dialogue?.voice ?? 'none', 'audio.dialogue.voice', VOICES) },
+    music: { profile: r.oneOf(whenAbsent(a?.music?.profile, 'harmonic'), 'audio.music.profile', MUSIC_PROFILES) },
+    dialogue: { voice: r.oneOf(whenAbsent(a?.dialogue?.voice, 'none'), 'audio.dialogue.voice', VOICES) },
   };
   const c = input.captions === undefined ? {} : input.captions;
   if (!isObject(c)) r.add('FIELD_OBJECT', 'captions', 'must be an object');
+  else r.closed(c, 'captions', ['derive', 'burnedIn']);
   plan.captions = {
-    derive: r.oneOf(c?.derive ?? 'auto', 'captions.derive', ['auto', 'dialogue', 'explicit']),
+    derive: r.oneOf(whenAbsent(c?.derive, 'auto'), 'captions.derive', ['auto', 'dialogue', 'explicit']),
     burnedIn: c?.burnedIn === undefined ? true : (typeof c.burnedIn === 'boolean' ? c.burnedIn : (r.add('FIELD_BOOLEAN', 'captions.burnedIn', 'must be boolean'), true)),
   };
   if (input.endCard !== undefined) {
     const e = input.endCard;
     if (!isObject(e)) r.add('FIELD_OBJECT', 'endCard', 'must be an object');
     else {
-      plan.endCard = { seconds: r.int(e.seconds ?? 3, 'endCard.seconds', 1, 10), linkRel: r.oneOf(e.linkRel ?? 'paper', 'endCard.linkRel', LINK_RELS) };
+      r.closed(e, 'endCard', ['seconds', 'headline', 'text', 'linkRel']);
+      plan.endCard = { seconds: r.int(whenAbsent(e.seconds, 3), 'endCard.seconds', 1, 10), linkRel: r.oneOf(whenAbsent(e.linkRel, 'paper'), 'endCard.linkRel', LINK_RELS) };
       for (const f of ['headline', 'text']) if (e[f] !== undefined) plan.endCard[f] = r.text(e[f], `endCard.${f}`, { max: 300 });
     }
   }
   const rd = input.render === undefined ? {} : input.render;
   if (!isObject(rd)) r.add('FIELD_OBJECT', 'render', 'must be an object');
-  const targets = rd?.targets ?? [...TARGETS];
-  if (!Array.isArray(targets) || targets.length < 1 || targets.some((t) => !TARGETS.includes(t)) || new Set(targets).size !== targets.length) r.add('UNKNOWN_TARGET', 'render.targets', `targets are a nonempty subset of ${TARGETS.join(', ')}`);
+  else r.closed(rd, 'render', ['targets', 'width', 'outputFps', 'style', 'motion']);
+  const targets = whenAbsent(rd?.targets, [...TARGETS]);
+  // Refusal does not make invalid values safe to normalize: sorting would coerce
+  // arbitrary JSON object members. Only a validated target subset may be sorted.
+  const validTargets = Array.isArray(targets) && targets.length > 0 && targets.every((t) => TARGETS.includes(t)) && new Set(targets).size === targets.length;
+  if (!validTargets) r.add('UNKNOWN_TARGET', 'render.targets', `targets are a nonempty subset of ${TARGETS.join(', ')}`);
   plan.render = {
-    targets: Array.isArray(targets) ? [...targets].sort() : [],
-    width: r.int(rd?.width ?? 360, 'render.width', 180, 1080),
-    outputFps: r.int(rd?.outputFps ?? 18, 'render.outputFps', 8, 30),
-    style: r.oneOf(rd?.style ?? 'abstract', 'render.style', STYLES),
-    motion: r.oneOf(rd?.motion ?? 'still', 'render.motion', MOTIONS),
+    targets: validTargets ? [...targets].sort() : [],
+    width: r.int(whenAbsent(rd?.width, 360), 'render.width', 180, 1080),
+    outputFps: r.int(whenAbsent(rd?.outputFps, 18), 'render.outputFps', 8, 30),
+    style: r.oneOf(whenAbsent(rd?.style, 'abstract'), 'render.style', STYLES),
+    motion: r.oneOf(whenAbsent(rd?.motion, 'still'), 'render.motion', MOTIONS),
   };
   if (Number.isSafeInteger(plan.render.width) && plan.render.width % 18 !== 0) r.add('GEOMETRY_NOT_9_16', 'render.width', 'width must be a multiple of 18 for exact 9:16 geometry');
   if (plan.render.motion !== 'still' && plan.render.style === 'abstract') r.add('MOTION_NEEDS_ABYSSAL_STAGE', 'render.motion', 'character motion requires an abyssal-glass or abyssal-psychedelic stage');
 
   const pub = input.publication === undefined ? {} : input.publication;
   if (!isObject(pub)) r.add('FIELD_OBJECT', 'publication', 'must be an object');
+  else r.closed(pub, 'publication', ['title', 'description', 'tags', 'privacy', 'requirePaperLink', 'parentVideoId', 'categoryId', 'madeForKids', 'aiDisclosure']);
   plan.publication = {
     title: pub?.title === undefined ? plan.title : r.text(pub.title, 'publication.title', { max: 100 }),
-    privacy: r.oneOf(pub?.privacy ?? 'private', 'publication.privacy', PRIVACY),
+    privacy: r.oneOf(whenAbsent(pub?.privacy, 'private'), 'publication.privacy', PRIVACY),
     requirePaperLink: pub?.requirePaperLink === undefined ? false : (typeof pub.requirePaperLink === 'boolean' ? pub.requirePaperLink : (r.add('FIELD_BOOLEAN', 'publication.requirePaperLink', 'must be boolean'), false)),
     tags: [],
   };
