@@ -18,7 +18,8 @@
     "@red-cup-engineering/google-flow-services-section": "0.1.0",
     "@red-cup-engineering/news-property": "0.2.0",
     "@causeway-services/public-education-services-section": "0.0.0",
-    "@red-cup-engineering/json-schema-services-section": "0.3.0"
+    "@red-cup-engineering/json-schema-services-section": "0.3.0",
+    "@red-cup-engineering/computer-media-engineering-services-section": "0.2.0"
   },
   "exports": {
     ".": "./src/media-demand-market.mjs",

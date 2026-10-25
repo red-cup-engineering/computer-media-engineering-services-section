@@ -65,7 +65,12 @@ export function planProceduralPreview(input,{scene=null,width=360,fps=18,style='
  const paracosm=ref.type==='NarrativeSource'&&ref.paracosm?.kind==='ParacosmWorkRef';
  const development=ref.type==='DevelopmentScreenplay'&&typeof ref.sourceRevision==='string'&&
    /^sha256:[a-f0-9]{64}$/.test(ref.sourceRevision)&&typeof ref.originRef==='string';
- if(!paracosm&&!development)throw new TypeError('only a source-owned paracosm or exact-hash development screenplay is previewable');
+ // A MediaPlanSource is the shared upstream plan (computer-media `plan`) compiled to a
+ // deterministic render job: its revision is the plan's exact source revision.
+ const mediaPlan=ref.type==='MediaPlanSource'&&typeof ref.sourceRevision==='string'&&
+   /^(?:sha256:[a-f0-9]{64}|git:[a-f0-9]{40}|ni:\/\/\/sha-256;[A-Za-z0-9_-]{43})$/.test(ref.sourceRevision)&&
+   typeof ref.planId==='string';
+ if(!paracosm&&!development&&!mediaPlan)throw new TypeError('only a source-owned paracosm, exact-hash development screenplay or compiled media plan is previewable');
  const work=paracosm?ref.paracosm.work:ref.id;
  const revision=paracosm?ref.paracosm.sourceRevision:ref.sourceRevision;
  slug(work,'work');requireText(revision,'source revision');
@@ -166,7 +171,24 @@ function makeSrt(shots,sourceFps){
  return lines.join('\n')+'\n';
 }
 
-export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=null,style='abstract',voice='none',motion='still',sourceBytes=null}={}){
+/**
+ * Compose deterministic SVG shot assets (from a media plan) onto a 540x960 scene.
+ * A `frame` asset replaces the scene art; `overlay` assets are drawn over it, in order.
+ * Assets are self-contained SVG documents embedded as data URIs, so nothing external is read.
+ */
+export function composeShotSvg(baseSvg,assets=[]){
+ if(!assets.length)return baseSvg;
+ const embed=asset=>`<image x="0" y="0" width="540" height="960" preserveAspectRatio="xMidYMid meet" href="data:image/svg+xml;base64,${Buffer.from(asset.svg,'utf8').toString('base64')}"/>`;
+ const frame=assets.find(a=>a.role==='frame');
+ const overlays=assets.filter(a=>a.role==='overlay').map(embed).join('');
+ const body=frame?`<svg xmlns="http://www.w3.org/2000/svg" width="540" height="960" viewBox="0 0 540 960">${embed(frame)}</svg>`:baseSvg;
+ return body.replace(/<\/svg>\s*$/,overlays+'</svg>');
+}
+
+export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=null,style='abstract',voice='none',motion='still',sourceBytes=null,
+ captions=null,assets=[],provenance=null}={}){
+ const assetsFor=shotId=>assets.filter(a=>a.shotId===shotId);
+ if(captions&&(typeof captions.srt!=='string'||captions.burnedIn!==undefined&&typeof captions.burnedIn!=='boolean'))throw new TypeError('captions need compiled srt text');
  if(!['still','character-bob','kinetic-rig'].includes(motion)||(motion!=='still'&&style==='abstract'))throw new TypeError('character motion requires abyssal-glass or abyssal-psychedelic stage');
  if(!['none','rehearsal'].includes(voice))throw new TypeError('supported voice profile is none or rehearsal');
  const plan=planProceduralPreview(input,{width,fps,scene,style}),destination=resolve(requireText(outDir,'output directory'));
@@ -178,7 +200,8 @@ export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=nul
   const parts=[],pngs=[],vectorMasters=[];
   for(const [i,shot] of plan.shots.entries()){
    const svg=join(temp,`shot-${String(i).padStart(2,'0')}.svg`),png=svg.replace('.svg','.png'),clip=svg.replace('.svg','.mp4');
-   writeFileSync(svg,abyssal?sceneSvgAbyssal(shot,i,plan.shots.length,plan.sourceWork,{psychedelic:psycho}):sceneSvg(shot,i,plan.shots.length,plan.sourceWork),'utf8');
+   const shotAssets=assetsFor(shot.id);
+   writeFileSync(svg,composeShotSvg(abyssal?sceneSvgAbyssal(shot,i,plan.shots.length,plan.sourceWork,{psychedelic:psycho}):sceneSvg(shot,i,plan.shots.length,plan.sourceWork),shotAssets),'utf8');
     const sceneLabel=String(i+1).padStart(2,'0');
     vectorMasters.push({path:svg,filename:'scene-'+sceneLabel+'.svg',kind:'editable-static-svg'});
     if(abyssal){
@@ -200,7 +223,7 @@ export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=nul
    const frames=shot.previewFrames;
    if((motion==='character-bob'||motion==='kinetic-rig')&&shot.characterIds.length){
     const backgroundSvg=join(temp,`background-${String(i).padStart(2,'0')}.svg`),backgroundPng=backgroundSvg.replace('.svg','.png');
-    writeFileSync(backgroundSvg,sceneSvgAbyssal(shot,i,plan.shots.length,plan.sourceWork,{hideActors:true,psychedelic:psycho}),'utf8');
+    writeFileSync(backgroundSvg,composeShotSvg(sceneSvgAbyssal(shot,i,plan.shots.length,plan.sourceWork,{hideActors:true,psychedelic:psycho}),shotAssets),'utf8');
     run('ffmpeg',['-nostdin','-y','-hide_banner','-loglevel','error','-i',backgroundSvg,'-frames:v','1',backgroundPng],temp);
     const inputs=[backgroundPng],graph=['[0:v]format=rgba[base]'];let previous='base';
     for(const [j,actor] of shot.characterIds.entries()){
@@ -260,7 +283,7 @@ export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=nul
    parts.push(clip);pngs.push(png);
   }
   const fileList=parts.map(file=>`file '${file}'`).join('\n')+'\n',concat=join(temp,'files.txt');writeFileSync(concat,fileList);
-  const srt=makeSrt(plan.shots,plan.sourceFps),srtPath=join(temp,'captions.srt');writeFileSync(srtPath,srt,'utf8');
+  const srt=captions?captions.srt:makeSrt(plan.shots,plan.sourceFps),srtPath=join(temp,'captions.srt');writeFileSync(srtPath,srt,'utf8');
   const score=composeSourceScore(plan.shots,plan.sourceFps,{profile:psycho?'psychedelic':'harmonic'});
    const audioPath=join(temp,'score.wav'),midiPath=join(temp,'score.mid');
    writeFileSync(audioPath,renderSourceScore(score));writeFileSync(midiPath,scoreMidi(score));
@@ -276,7 +299,7 @@ export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=nul
    ...(voicePath?['-i',voicePath]:[]),
    ...(voicePath?['-filter_complex','[1:a]volume=0.22[bed];[2:a]volume=1.0[cast];[bed][cast]amix=inputs=2:duration=first:normalize=0:dropout_transition=0,alimiter=limit=0.92[mixed]',
      '-map','0:v','-map','[mixed]']:[]),
-   '-vf',`subtitles=filename=captions.srt:force_style='FontName=DejaVu Sans,FontSize=${Math.max(13,Math.round(9+plan.width/52))},Outline=2,Shadow=0,MarginV=${Math.max(12,Math.round(16*plan.width/180))},Alignment=2'`,
+   ...(captions&&captions.burnedIn===false?[]:['-vf',`subtitles=filename=captions.srt:force_style='FontName=DejaVu Sans,FontSize=${Math.max(13,Math.round(9+plan.width/52))},Outline=2,Shadow=0,MarginV=${Math.max(12,Math.round(16*plan.width/180))},Alignment=2'`]),
    '-c:v','libx264','-x264-params','asm=0','-threads','1','-preset','veryfast','-crf','22','-pix_fmt','yuv420p',
    '-c:a','aac','-b:a','96k','-ar','24000','-ac','1','-shortest','-map_metadata','-1','-movflags','+faststart',final],temp);
   copyFileSync(srtPath,join(destination,'captions.srt'));
@@ -306,6 +329,7 @@ export function renderProceduralPreview(input,{outDir,width=360,fps=18,scene=nul
     frames:Math.round(plan.totalSeconds*plan.outputFps),seconds:plan.totalSeconds,
     output:{width:plan.width,height:plan.height,fps:plan.outputFps},visualStyle:plan.visualStyle,motionProfile:motion,sceneIds:plan.shots.map(x=>x.id),
     textTrack:'captions.srt',poster:'contact-sheet.png',toolchain,
+    ...(provenance?{mediaPlan:provenance,shotAssets:assets.map(a=>({shotId:a.shotId,assetId:a.assetId,role:a.role,sha256:a.sha256}))}:{}),
      editableAssets:{
        vectorMasters:vectorMasters.map(a=>({file:a.filename,format:a.kind,sha256:hash(readFileSync(a.path))})),
        soundtrack:{waveform:'score.wav',waveformSha256:hash(readFileSync(audioPath)),
