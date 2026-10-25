@@ -1,0 +1,40 @@
+{
+  "id": "one-media-plan-drives-every-renderer",
+  "name": "One media plan drives every renderer",
+  "kind": "requirement",
+  "raised-by": "emsenn",
+  "asks": "one shared upstream contract and code that both Google Flow video production and the deterministically generated microdrama/micro-serial videos consume",
+  "tier": "strategic",
+  "met-when": [
+    {
+      "cell": "one-media-plan-drives-every-renderer:one-schema",
+      "target": "held",
+      "says": "A JSON-Schema'd MediaPlan (script, scenes, shots, assets, captions, audio, render target, publication metadata, source provenance, links to paper) exists in computer-media-engineering-services-section and is the only input shape the Flow order compiler and the deterministic render compiler accept."
+    },
+    {
+      "cell": "one-media-plan-drives-every-renderer:hoare-contract",
+      "target": "held",
+      "says": "Compilation is a Hoare-contracted pure function: coded refusals before any output, a deterministic receipt after, effects none; a receiving party can verify the receipt by recompiling."
+    },
+    {
+      "cell": "one-media-plan-drives-every-renderer:flow-consumer",
+      "target": "held",
+      "says": "google-flow prepares priced, unsubmitted orders from a plan; queueing is explicit and spending remains flow-generate's."
+    },
+    {
+      "cell": "one-media-plan-drives-every-renderer:deterministic-consumer",
+      "target": "held",
+      "says": "The procedural renderer renders a plan end to end locally and checks frame count, geometry, duration and captions against the compile receipt."
+    },
+    {
+      "cell": "one-media-plan-drives-every-renderer:producers-migrated",
+      "target": "open",
+      "says": "The education short producer, the Public Fiction commission pipeline and the Climate Place-By-Place video thread emit media plans instead of hand-built order lines and episode JSON."
+    }
+  ],
+  "x-provenance": {
+    "recorded-by": "media-upstream thread (Claude Sonnet 5.5 session, 2026-10-25)",
+    "recorded-on": "2026-10-25",
+    "source": "Owner request: one shared upstream media contract for Google Flow and the deterministic microdrama renderer; standing rule no-work-outside-an-office-duty-and-skill"
+  }
+}

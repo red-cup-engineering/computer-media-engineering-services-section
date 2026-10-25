@@ -1,0 +1,100 @@
+{
+  "id": "2026-10-25-media-plan-upstream",
+  "kind": "media-plan-upstream-record",
+  "$comment": "Operational record of the thread that built the shared media plan. No schema exists for this kind yet; it is written in the shape of the system-debt and repository-receiving records (id, kind, evidence-bearing fields, x-provenance). See the system-debt record no-runbook-form-for-norm-triggered-skill-sequences for the related form gap.",
+  "office": "media-plan-steward (proposed, no incumbent)",
+  "duty": "compile-media-plans-for-every-renderer",
+  "skills-used": [
+    "compile-a-media-plan",
+    "run-the-media-plan-cycle",
+    "prepare-flow-orders-from-a-media-plan",
+    "render-a-media-plan-deterministically"
+  ],
+  "observed": {
+    "pipelines": {
+      "flow-orders": "google-flow-engineering-services-section: flow-generate.mjs admits JSONL order lines (consumer, medium video|image, prompt, model, aspect, count, optional sources/destination/purpose/parentVideoId/promptAssembly/orderId), queueFlowOrder writes orders/pending, runFlowQueue spends under the allowance ledger and journals MediaArtifactWorkCompletion lines with NI ids to generations.jsonl. The wire client is text-to-video only (flow-protocol.mjs).",
+      "education-shorts": "causeway public-education-services-section (not cloned) writes the pending/review order lines (education-flow/2 prompt assembly, consumer education-short--series--lesson--angle, purpose youtube-short-companion); the exact lesson caption is composited afterward by a step not found here.",
+      "deterministic-microdrama": "media-engineering-services-section/services/public-fiction-media-services-section (a received copy of causeway-services/public-media-services-section): apps/previsualize-microdrama.mjs renders an episode JSON (episode.shots with frames, locationId, characterIds, action, dialogue; source) to SVG scenes, kinetic score (src/kinetic-score.mjs), SRT, optional espeak rehearsal voice, and an mp4 with ffmpeg pinned for CPU-scalar reproducibility. The serial is The Unassigned Floor (agent-audience episode reader: apps/read-agent-episode.mjs, serve-agent-episode.mjs). A parallel path, microdrama-production/veo-shooting/assembly/release, plans Gemini Veo shoots and assembles accepted footage.",
+      "media-primitives": "computer-media-engineering-services-section src/raster.mjs and audio.mjs are small ffmpeg wrappers (fitJpeg, mediaDurationSeconds, prepareAudioChunks), not the render engine; media-production-scheduling-service schedules microdrama production; youtube-engineering-services-section and google-drive-use-team hold upload and custody; market.561.group src/microdrama.mjs only describes a commission service.",
+      "divergence": "Flow orders are prompt strings with no shot, caption, overlay or paper provenance; the deterministic renderer has shots, dialogue and captions but no prompts, assets from outside, publication metadata or paper link; the Miami review order asks the video model to draw labelled text."
+    },
+    "host-reads": {
+      "host": "cold-red-gate",
+      "access": "ssh, read-only",
+      "paths": [
+        "~/.local/state/561-group/google-flow/orders/pending (6 files)",
+        "~/.local/state/561-group/google-flow/orders/review (2 files)",
+        "~/.local/state/561-group/google-flow/orders/done (51 directories, listed only)",
+        "~/.local/state/561-group/google-flow/generations.jsonl (173 lines: 33 unsalted-sea-canon, 22 ice-out-trailer, 14 sigrid-song-shorts, 10 education-thumbnails, 9 duluth-drama-two-years, 11 education-short--* completions, remaining Drive custody lines)"
+      ],
+      "copied-into-fixtures": "3 order lines (pace-yourself-what-is-iaci, turntide-islands, review Miami misconception) and 10 completion lines (duluth-drama-two-years, New York City mechanism) with the host-local resource.path removed; no credential, cookie or session file was read",
+      "modified": "nothing"
+    },
+    "local": {
+      "gh": "gh auth status reports the token in ~/.config/gh/hosts.yml invalid; REST core quota exhausted until ~00:32 UTC; graphql and git over https worked (see system-debt record)",
+      "npm": "@red-cup-engineering resolves to https://registry.561.group/ through ~/.npmrc (credentials in that file, not recorded); computer-media 0.1.0 is published, 0.2.0 is not",
+      "toolchain": "ffmpeg 6.1.1 with libx264, librsvg, libass; DejaVu Sans present; espeak absent",
+      "heavy-command-lock": "/run/user/1000/agent-heavy.lock serialises node --test, npm, git and find across agents; commands waited minutes for it"
+    }
+  },
+  "decided": [
+    {
+      "decision": "the plan lives in computer-media-engineering-services-section as ./plan",
+      "because": "dependency order data -> code -> networking -> systems: both consumers (google-flow, media-engineering) must be able to depend on it and media-engineering already depends on google-flow, so the plan cannot live in either; computer-media's stated noun is media content; no new repository was needed"
+    },
+    {
+      "decision": "compilers are pure and take the Flow model, catalog price and journal as inputs",
+      "because": "pricing must come from an observed catalog and reuse from the journal; the shared package must not import the Flow package"
+    },
+    {
+      "decision": "compile never queues, spends or publishes",
+      "because": "owner's brief; recorded as rule a-compile-never-queues-spends-or-publishes"
+    },
+    {
+      "decision": "unsupported conditioning, over-long shots, timing drift, unresolved assets and over-long end-card links are refused, never trimmed or dropped",
+      "because": "silent loss of a plan's content is the failure this contract exists to prevent"
+    },
+    {
+      "decision": "a shot already generated for the exact prompt (sha-256 NI, as the journal addresses it) is satisfied, not re-ordered",
+      "because": "the 173-line journal shows regenerated takes sharing one prompt address"
+    }
+  ],
+  "changed": [
+    {
+      "repo": "red-cup-engineering/computer-media-engineering-services-section",
+      "branch": "media-plan-shared-upstream",
+      "before": "no plan contract; raster.mjs and audio.mjs only",
+      "after": "src/media-plan*.mjs, data/schema/*.json, agency forms, tests, version 0.2.0"
+    },
+    {
+      "repo": "red-cup-engineering/google-flow-engineering-services-section",
+      "branch": "media-plan-flow-consumer",
+      "before": "order lines built by callers",
+      "after": "src/flow-media-plan.mjs, prepare skill, tests, version 0.1.11"
+    },
+    {
+      "repo": "red-cup-engineering/media-engineering-services-section",
+      "branch": "media-plan-deterministic-consumer",
+      "before": "renderer accepted paracosm or development screenplay sources only",
+      "after": "MediaPlanSource accepted, composeShotSvg, caption and asset hooks, apps/render-media-plan.mjs, render skill, tests; existing previs tests still pass"
+    }
+  ],
+  "verified": [
+    "computer-media: 22 tests pass (admission, round-trips of real orders, real journal reuse, Hoare receipt tamper detection, skill scripts)",
+    "media-engineering: 4 new tests pass including a real ffmpeg render with an SVG overlay and end card; 4 existing previsualization tests pass (byte-identical rebuild retained)",
+    "google-flow: flow-media-plan tests pass; the queue-admission test is skipped here because flow-generate's registry dependencies do not resolve in this clone",
+    "end to end: Unassigned Floor episode 1 rendered from a plan (51 s, 918 frames, 360x640, audio, captions, end card with paper link) and the same plan compiled to 8 priced, unqueued Flow orders"
+  ],
+  "left-open": [
+    "system-debt-records/* in this directory (11 records)"
+  ],
+  "x-provenance": {
+    "recorded-by": "media-upstream thread (Claude Sonnet 5.5 session, 2026-10-25)",
+    "recorded-on": "2026-10-25",
+    "pull-requests": [
+      "PR_COMPUTER_MEDIA",
+      "PR_GOOGLE_FLOW",
+      "PR_MEDIA_ENGINEERING"
+    ]
+  }
+}
