@@ -54,6 +54,9 @@ export function projectParacosmVideoProduction({source,storyBible,derivation,ass
  const requiredPlaces=[...new Set(episode.shots.map(shot=>shot.locationId))];
  unique(requiredCharacters,'episode cast');
  const characters=[],locations=[],missing=[];
+ const spokenByExternalVoice=new Set(episode.shots
+   .filter(shot=>shot.audioMode!=='embedded-performance')
+   .flatMap(shot=>(shot.dialogue??[]).map(line=>line.speakerId)));
  for(const id of requiredCharacters){
    const resource=sourceBySlug.get(id),binding=mediaBindings.characters[id];
    if(!resource||resource.type!=='being'||!names.has(id)){missing.push({id,reason:'character-not-in-story-bible'});continue}
@@ -61,7 +64,23 @@ export function projectParacosmVideoProduction({source,storyBible,derivation,ass
      binding.sourceIdentity!==resource.contentIdentity){
      missing.push({id,reason:'visual-voice-rights-or-source-binding-not-accepted'});continue
    }
-   characters.push({id,name:resource.name??names.get(id),synthetic:true,
+   // A character's canonical identity does not determine visual production
+   // technique or grant synthetic voice rights. The asset binding must say.
+   const performance=binding.performance;
+   if(!['synthetic','recorded','puppet','abstract-animation','nonvisual'].includes(performance)){
+     missing.push({id,reason:'character-performance-mode-not-received'});continue;
+   }
+   if(binding.voicePerformance!==undefined &&
+      !['synthetic','recorded'].includes(binding.voicePerformance)){
+     missing.push({id,reason:'character-voice-performance-mode-not-received'});continue;
+   }
+   if(spokenByExternalVoice.has(id) &&
+      !['synthetic','recorded'].includes(binding.voicePerformance??(
+        ['synthetic','recorded'].includes(performance)?performance:null))){
+     missing.push({id,reason:'speaking-character-voice-performance-mode-not-received'});continue;
+   }
+   characters.push({id,name:resource.name??names.get(id),performance,
+     ...(binding.voicePerformance===undefined?{}:{voicePerformance:binding.voicePerformance}),
      visualRef:binding.visualRef,voiceRef:binding.voiceRef});
  }
  for(const id of requiredPlaces){
@@ -75,8 +94,27 @@ export function projectParacosmVideoProduction({source,storyBible,derivation,ass
  }
  if(missing.length)return held('canonical-resources-not-yet-bound-to-accepted-media',{
    world,missing:Object.freeze(missing)});
+ // A source-authored longer cartoon take must not inherit the short video
+ // provider's eight-second default by accident. Only accepted 2D/abstract
+ // cast in an extended shot can select a longer original compiler bound.
+ // This is a held production proposal, not evidence of an installed renderer.
+ const maxShotSeconds=episode.maxShotSeconds??8;
+ if(!Number.isSafeInteger(maxShotSeconds)||maxShotSeconds<1||maxShotSeconds>30)
+   throw new TypeError('source-authored maxShotSeconds must be 1..30');
+ if(maxShotSeconds>8){
+   const modeById=new Map(characters.map(c=>[c.id,c.performance]));
+   for(const shot of episode.shots){
+     if(!Number.isSafeInteger(shot.frames)||shot.frames<=8*(episode.fps??30))continue;
+     const modes=Array.isArray(shot.characterIds)
+       ? shot.characterIds.map(id=>modeById.get(id)) : [];
+     if(!modes.some(mode=>['puppet','abstract-animation'].includes(mode))||
+        !modes.every(mode=>['puppet','abstract-animation','nonvisual'].includes(mode)))
+       return held('extended-shot-requires-source-bound-2d-performance',{
+         world,shotId:shot.id,maxShotSeconds});
+   }
+ }
  const proposed=compileNarrativeEpisode({source,series:{id:world.work,characters,locations},
-   episode,receiver,openedAt});
+   episode,receiver,openedAt,maxShotSeconds});
  return Object.freeze({type:'ParacosmVideoProjection',status:'PROPOSED_NOT_ADMITTED',
    world:{...world,textSlug,textIdentity:sourceBySlug.get(textSlug).contentIdentity},
    assayRef:assay.reportRef,proposal:proposed,

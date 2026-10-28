@@ -464,3 +464,176 @@ test('existing Causeway production CLI distinguishes verified PRIVATE upload fro
   assert.equal(observed.status,'FINISHED_FILM_ACCEPTANCE_CLAIM_RECEIVED_NOT_PUBLISHED');
  }finally{rmSync(root,{recursive:true,force:true})}
 });
+
+test('Toonsday: a real puppet source retains 2D receiving and separately authorized recorded voice',()=>{
+ const s=series();
+ s.characters[0]={...s.characters[0],synthetic:false,performance:'puppet',voicePerformance:'recorded'};
+ const plan=compileNarrativeEpisode({source:seed(),series:s,episode:episode(),receiver:receiver(),
+   openedAt:'2026-10-12T00:00:00Z'});
+ assert.equal(plan.jobs.video[0].visualCapability,'2d-animation-compositing');
+ assert.equal(plan.jobs.video[1].visualCapability,'2d-animation-compositing');
+ assert.equal(plan.jobs.speech[0].performance,'puppet');
+ assert.equal(plan.jobs.speech[0].voicePerformance,'recorded');
+ assert.equal(plan.jobs.speech[0].method,'licensed-performance');
+ assert.equal(plan.mediaNeedCandidate.artifacts[0].capability,'2d-animation-compositing');
+ assert.match(plan.mediaNeedCandidate.artifacts[0].acceptanceCriteria,/licensed 2D drawing\/rig/u);
+ assert.match(plan.mediaNeedCandidate.artifacts[12].acceptanceCriteria,/licensed recorded voice/u);
+ assert.ok(plan.mediaNeedCandidate.artifacts.every(x=>x.disposition==='hold'));
+ assert.throws(()=>estimateVideoGeneration({plan,rateCentsPerSecond:2}),
+   /non-cinematic animation/u);
+ const normal=compile();
+ assert.equal(normal.jobs.video[0].visualCapability,'cinematic-performance');
+ assert.equal(normal.mediaNeedCandidate.artifacts[0].capability,'cinematic-performance');
+ assert.equal(estimateVideoGeneration({plan:normal,rateCentsPerSecond:2}).deliveredSeconds,60);
+});
+
+test('Toonsday: one abstract cast member changes only shots in which they appear',()=>{
+ const s=series();
+ s.characters[1]={...s.characters[1],synthetic:false,performance:'abstract-animation'};
+ const plan=compileNarrativeEpisode({source:seed(),series:s,episode:episode(),receiver:receiver(),
+   openedAt:'2026-10-12T00:00:00Z'});
+ assert.equal(plan.jobs.video[0].visualCapability,'2d-animation-compositing');
+ assert.equal(plan.jobs.video[1].visualCapability,'cinematic-performance');
+ assert.equal(plan.mediaNeedCandidate.artifacts[0].capability,'2d-animation-compositing');
+ assert.equal(plan.mediaNeedCandidate.artifacts[1].capability,'cinematic-performance');
+ assert.throws(()=>estimateVideoGeneration({plan,rateCentsPerSecond:2}),
+   /non-cinematic animation/u);
+});
+
+test('Toonsday: legacy synthetic flag cannot override a conflicting 2D medium',()=>{
+ const conflict=series();
+ conflict.characters[0]={...conflict.characters[0],performance:'puppet',
+   voicePerformance:'recorded'};
+ assert.throws(()=>compileNarrativeEpisode({source:seed(),series:conflict,episode:episode(),
+   receiver:receiver(),openedAt:'2026-10-12T00:00:00Z'}),
+   /synthetic alias conflicts/u);
+ const reverse=series();
+ reverse.characters[0]={...reverse.characters[0],synthetic:false,performance:'synthetic'};
+ assert.throws(()=>compileNarrativeEpisode({source:seed(),series:reverse,episode:episode(),
+   receiver:receiver(),openedAt:'2026-10-12T00:00:00Z'}),
+   /non-synthetic character contradicts/u);
+});
+
+test('Toonsday: undocumented voice mode and false cinematic quotes are refused',()=>{
+ const noVoice=series();
+ noVoice.characters[0]={...noVoice.characters[0],synthetic:false,performance:'puppet'};
+ assert.throws(()=>compileNarrativeEpisode({source:seed(),series:noVoice,episode:episode(),
+   receiver:receiver(),openedAt:'2026-10-12T00:00:00Z'}),
+   /requires a separately declared voice performance/u);
+ const badVoice=series();
+ badVoice.characters[0]={...badVoice.characters[0],voicePerformance:'unknown'};
+ assert.throws(()=>compileNarrativeEpisode({source:seed(),series:badVoice,episode:episode(),
+   receiver:receiver(),openedAt:'2026-10-12T00:00:00Z'}),
+   /voice performance must be synthetic or recorded/u);
+ const soundOnly=series();
+ for(const c of soundOnly.characters){
+   c.synthetic=false;c.performance='nonvisual';c.voicePerformance='recorded';
+ }
+ const plan=compileNarrativeEpisode({source:seed(),series:soundOnly,episode:episode(),
+   receiver:receiver(),openedAt:'2026-10-12T00:00:00Z'});
+ assert.equal(plan.jobs.video[0].visualCapability,'nonvisual-scene-production');
+ assert.throws(()=>estimateVideoGeneration({plan,rateCentsPerSecond:2}),
+   /non-cinematic animation/u);
+});
+
+test('Toonsday: film yield cannot launder Flow receipts across 2D or nonvisual MediaNeed',()=>{
+ const rigged=series();
+ rigged.characters[0]={...rigged.characters[0],synthetic:false,performance:'puppet',voicePerformance:'recorded'};
+ const plan=compileNarrativeEpisode({source:seed(),series:rigged,episode:episode(),
+   receiver:receiver(),openedAt:'2026-10-12T00:00:00Z'});
+ const forgedFlow={completionId:'unrelated-flow-video',consumer:plan.mediaNeedCandidate.consumer,
+   purpose:plan.jobs.video[0].id,allocation:'unauthorized-allocation',
+   mediaNeed:'held-2d-need',output:'ni:///sha-256;'+'A'.repeat(43),
+   mimeType:'video/mp4',provider:'urn:ame:google-flow',quotedFlowCredits:100,
+   sourceIdentities:[plan.jobs.video[0].sourceRef]};
+ assert.throws(()=>projectMicrodramaProductionYield({
+   plan,providerArtifacts:[forgedFlow],reviews:[]}),/non-cinematic animation/u);
+ const nonvisual=series();
+ for(const c of nonvisual.characters){
+   c.synthetic=false;c.performance='nonvisual';c.voicePerformance='recorded';
+ }
+ const audioOnly=compileNarrativeEpisode({source:seed(),series:nonvisual,episode:episode(),
+   receiver:receiver(),openedAt:'2026-10-12T00:00:00Z'});
+ assert.throws(()=>projectMicrodramaProductionYield({
+   plan:audioOnly,providerArtifacts:[],reviews:[]}),/non-cinematic animation/u);
+ const cinematic=compile();
+ const noArtifacts=projectMicrodramaProductionYield({
+   plan:cinematic,providerArtifacts:[],reviews:[]});
+ assert.equal(noArtifacts.providerCandidateCount,0);
+ assert.equal(noArtifacts.acceptedFinishedSeconds,0);
+});
+
+test('Toonsday: forged cinematic tags cannot override source cast or media requirement',()=>{
+ const cinematic=compile();
+ const video=[...cinematic.jobs.video];
+ video[0]={...video[0],cast:[{...video[0].cast[0],performance:'puppet'}]};
+ const tamperedCast={...cinematic,jobs:{...cinematic.jobs,video}};
+ assert.throws(()=>estimateVideoGeneration({plan:tamperedCast,rateCentsPerSecond:2}),
+   /non-cinematic animation/u);
+ assert.throws(()=>projectMicrodramaProductionYield({
+   plan:tamperedCast,providerArtifacts:[],reviews:[]}),/non-cinematic animation/u);
+ const artifacts=[...cinematic.mediaNeedCandidate.artifacts];
+ artifacts[0]={...artifacts[0],capability:'2d-animation-compositing'};
+ const tamperedDemand={...cinematic,mediaNeedCandidate:{
+   ...cinematic.mediaNeedCandidate,artifacts}};
+ assert.throws(()=>estimateVideoGeneration({plan:tamperedDemand,rateCentsPerSecond:2}),
+   /mismatched MediaNeed/u);
+ assert.throws(()=>projectMicrodramaProductionYield({
+   plan:tamperedDemand,providerArtifacts:[],reviews:[]}),/mismatched MediaNeed/u);
+});
+
+test('Toonsday: exhaustive two-performer mode and voice matrix respects source demands',()=>{
+ const modes=['synthetic','recorded','puppet','abstract-animation','nonvisual'];
+ let combinations=0,classifiedShots=0;
+ for(const left of modes)for(const right of modes){
+  for(const leftVoice of ['synthetic','recorded'])
+  for(const rightVoice of ['synthetic','recorded']){
+   combinations++;
+   const cast=series();
+   const choices=[{performance:left,voicePerformance:leftVoice},
+     {performance:right,voicePerformance:rightVoice}];
+   for(let i=0;i<2;i++){
+    cast.characters[i]={...cast.characters[i],...choices[i]};
+    delete cast.characters[i].synthetic;
+   }
+   const plan=compileNarrativeEpisode({source:seed(),series:cast,episode:episode(),
+     receiver:receiver(),openedAt:'2026-10-12T00:00:00Z'});
+   const classify=actors=>actors.every(c=>c.performance==='nonvisual')
+     ?'nonvisual-scene-production'
+     :actors.some(c=>['puppet','abstract-animation'].includes(c.performance))
+       ?'2d-animation-compositing':'cinematic-performance';
+   for(const job of plan.jobs.video){
+    const expected=classify(job.cast);
+    const need=plan.mediaNeedCandidate.artifacts.find(x=>x.purpose===job.id);
+    assert.equal(job.visualCapability,expected);
+    assert.equal(need.capability,expected);
+    assert.equal(need.disposition,'hold');
+    if(expected==='2d-animation-compositing'){
+      assert.ok(job.requiredEvidence.includes('renderer-version'));
+      assert.ok(job.requiredEvidence.includes('pose-exposure-timeline'));
+      assert.ok(!job.requiredEvidence.includes('model-version'));
+    }else if(expected==='cinematic-performance'){
+      assert.ok(job.requiredEvidence.includes('model-version'));
+      assert.ok(!job.requiredEvidence.includes('pose-exposure-timeline'));
+    }else{
+      assert.ok(job.requiredEvidence.includes('nonvisual-performance-source'));
+      assert.ok(!job.requiredEvidence.includes('model-version'));
+    }
+    classifiedShots++;
+   }
+   const allCinematic=plan.jobs.video.every(j=>j.visualCapability==='cinematic-performance');
+   if(allCinematic){
+     assert.equal(estimateVideoGeneration({plan,rateCentsPerSecond:2}).deliveredSeconds,60);
+     assert.equal(projectMicrodramaProductionYield({
+       plan,providerArtifacts:[],reviews:[]}).acceptedFinishedSeconds,0);
+   }else{
+     assert.throws(()=>estimateVideoGeneration({plan,rateCentsPerSecond:2}),
+       /non-cinematic animation/u);
+     assert.throws(()=>projectMicrodramaProductionYield({
+       plan,providerArtifacts:[],reviews:[]}),/non-cinematic animation/u);
+   }
+  }
+ }
+ assert.equal(combinations,100);
+ assert.equal(classifiedShots,1200);
+});

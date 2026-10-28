@@ -30,6 +30,27 @@ const unique = (arr, label) => {
 const ensure = (condition, message) => { if (!condition) throw new TypeError(message); };
 const frozen = x => Object.freeze(x);
 
+// Classify *source-authored* media once, rather than trusting a user-supplied
+// billing label when quoting or attributing a received production.
+const visualCapabilityForCast = cast => {
+  ensure(Array.isArray(cast) && cast.length > 0 && cast.every(c =>
+    object(c) && ['synthetic','recorded','puppet','abstract-animation','nonvisual'].includes(c.performance)),
+    'visual production requires a cast with valid source performance modes');
+  return cast.every(c => c.performance === 'nonvisual')
+    ? 'nonvisual-scene-production'
+    : cast.some(c => ['puppet','abstract-animation'].includes(c.performance))
+      ? '2d-animation-compositing' : 'cinematic-performance';
+};
+const ensureCinematicProjectionCompatibility = plan => {
+  for (const job of plan.jobs.video) {
+    const need=plan.mediaNeedCandidate?.artifacts?.find(a=>a.purpose===job.id);
+    ensure(visualCapabilityForCast(job.cast)==='cinematic-performance' &&
+      (job.visualCapability??'cinematic-performance')==='cinematic-performance' &&
+      need?.capability==='cinematic-performance',
+      'non-cinematic animation, nonvisual work or mismatched MediaNeed cannot enter cinematic pricing/yield');
+  }
+};
+
 export function validateStorySeed(seed) {
   ensure(object(seed) && ['NativeStorySeed', 'AIStorySeed'].includes(seed.type),
     'NativeStorySeed or AIStorySeed is required');
@@ -133,13 +154,24 @@ export function compileNarrativeEpisode({source: inputSource, series, episode, r
   const characters = new Map(), locations = new Map();
   for (const raw of series.characters) {
     ensure(object(raw),'character must be a resource binding');
+    // The deprecated synthetic boolean is an input alias, not an override
+    // of an independently source-authored 2D or recorded performance.
+    ensure(raw.synthetic!==true||raw.performance===undefined||raw.performance==='synthetic',
+      'synthetic alias conflicts with source-authored performance mode');
+    ensure(raw.synthetic!==false||raw.performance!=='synthetic',
+      'explicitly non-synthetic character contradicts synthetic performance mode');
     const performance=raw.synthetic===true?'synthetic':raw.performance;
     ensure(['synthetic','recorded','puppet','abstract-animation','nonvisual'].includes(performance),
       'character requires a declared accepted performance mode');
+    // An approved visual medium alone never grants speech synthesis rights.
+    ensure(raw.voicePerformance===undefined||['synthetic','recorded'].includes(raw.voicePerformance),
+      'voice performance must be synthetic or recorded when declared');
     const id = cleanId(raw.id, 'character id');
     ensure(!characters.has(id), 'duplicate character id');
-    characters.set(id, frozen({id,performance,visualRef:legalRef(raw.visualRef,'canonical character visual reference'),
-      voiceRef:legalRef(raw.voiceRef,'canonical original synthetic voice reference'),
+    characters.set(id, frozen({id,performance,
+      ...(raw.voicePerformance===undefined?{}:{voicePerformance:raw.voicePerformance}),
+      visualRef:legalRef(raw.visualRef,'canonical character visual reference'),
+      voiceRef:legalRef(raw.voiceRef,'canonical character voice asset reference'),
       name:text(raw.name,'character name')}));
   }
   for (const raw of series.locations) {
@@ -221,17 +253,35 @@ export function compileNarrativeEpisode({source: inputSource, series, episode, r
       const speaker=characters.get(line.speakerId);
       const ref=`${seriesId}-${episodeId}-${id}-line-${j+1}`;
       spokenDialogue.push(frozen({id:ref,speakerId:speaker.id,text:utterance,startFrame:begin,endFrame:end}));
-      if (audioMode==='separate-voice') speechJobs.push(frozen({id:ref,shotId:id,speakerId:speaker.id,performance:speaker.performance,voiceRef:speaker.voiceRef,
-        text:utterance,startFrame:startFrame+begin,endFrame:startFrame+end,
-        method:speaker.performance==='synthetic'?'synthetic-original-voice':'licensed-performance',sourceRef:source.originRef,sourceWorld:source.paracosm??null}));
+      if (audioMode==='separate-voice') {
+        const voicePerformance=speaker.voicePerformance ??
+          (['synthetic','recorded'].includes(speaker.performance)?speaker.performance:null);
+        ensure(['synthetic','recorded'].includes(voicePerformance),
+          `shot ${id} requires a separately declared voice performance for ${speaker.id}`);
+        speechJobs.push(frozen({id:ref,shotId:id,speakerId:speaker.id,performance:speaker.performance,
+          voicePerformance,voiceRef:speaker.voiceRef,
+          text:utterance,startFrame:startFrame+begin,endFrame:startFrame+end,
+          method:voicePerformance==='synthetic'?'synthetic-original-voice':'licensed-performance',
+          sourceRef:source.originRef,sourceWorld:source.paracosm??null}));
+      }
       captions.push({startFrame:startFrame+begin,endFrame:startFrame+end,text:utterance});
     }
+    // Do not turn source-declared animation into cinematic generation demand.
+    // Unserved capabilities remain held until a qualified supplier is received.
+    const visualCapability=visualCapabilityForCast(cast);
     videoJobs.push(frozen({id:`${seriesId}-${episodeId}-${id}-video`,shotId:id,
-      durationFrames:frames,fps,aspectRatio:'9:16',audioMode,
+      durationFrames:frames,fps,aspectRatio:'9:16',audioMode,visualCapability,
       spokenDialogue:frozen(spokenDialogue),camera,action,cast:frozen(cast),
       location:loc,beatId:s.beatId,sourceRef:source.originRef,sourceWorld:source.paracosm??null,
-      requiredEvidence:frozen(['provider-id','model-version','input-digest','output-sha256','license','asset-custody',
-        ...(audioMode==='embedded-performance'?['audio-stream','dialogue-and-sync-review','sound-rights']:[])])}));
+      requiredEvidence:frozen([
+        ...(visualCapability==='2d-animation-compositing'
+          ? ['renderer-id','renderer-version','drawing-or-rig-source','pose-exposure-timeline','source-revision']
+          : visualCapability==='nonvisual-scene-production'
+            ? ['nonvisual-performance-source','source-revision']
+            : ['provider-id','model-version']),
+        'input-digest','output-sha256','license','asset-custody',
+        ...(audioMode==='embedded-performance'?['audio-stream','dialogue-and-sync-review','sound-rights']:[])
+      ])}));
     timeline.push(frozen({shotId:id,beatId:s.beatId,startFrame,endFrame,locationId:loc.id,
       characterIds:frozen([...s.characterIds])}));
     totalFrames=endFrame;
@@ -243,12 +293,12 @@ export function compileNarrativeEpisode({source: inputSource, series, episode, r
   ensure(totalFrames >= 15*fps && totalFrames <= 180*fps,
     'episode must be 15-180 seconds for this Shorts production profile');
   const subtitles=captions.map((c,i)=>`${i+1}\n${formatSrtTime(c.startFrame,fps)} --> ${formatSrtTime(c.endFrame,fps)}\n${c.text}\n`).join('\n');
-  const needs=[...videoJobs.map(v=>({capability:'cinematic-performance',purpose:v.id,
+  const needs=[...videoJobs.map(v=>({capability:v.visualCapability,purpose:v.id,
     wanted:1,priority:0,disposition:'hold',destination,
-    acceptanceCriteria:`${acceptanceCriteria}; must retain 9:16; exact shot/canonical cast/location refs; ${v.durationFrames} frames at ${fps}fps; source/provenance/usage rights; actual character performance, legible physical choice and source-specific acting; atmosphere-only or location B-roll cannot substitute; inspect actual output; ${v.audioMode==='embedded-performance'?'retain source performance audio and independently review dialogue/synchronization':'audio is externally performed and assembled from accepted speech jobs'}`})),
+    acceptanceCriteria:`${acceptanceCriteria}; must retain 9:16; exact shot/canonical cast/location refs; ${v.durationFrames} frames at ${fps}fps; source/provenance/usage rights; ${v.visualCapability==='2d-animation-compositing'?'actual licensed 2D drawing/rig, timed pose and mouth exposures, compositing, local retake and continuity from separately qualified 2D supplier; cinematic substitution refused':v.visualCapability==='nonvisual-scene-production'?'no implied picture; separately receive the actual nonvisual performance':'actual character performance, legible physical choice and source-specific acting; atmosphere-only or location B-roll cannot substitute'}; inspect actual output; ${v.audioMode==='embedded-performance'?'retain source performance audio and independently review dialogue/synchronization':'audio is externally performed and assembled from accepted speech jobs'}`})),
     ...speechJobs.map(a=>({capability:'audio-production',purpose:a.id,
       wanted:1,priority:0,disposition:'hold',destination,
-      acceptanceCriteria:`${acceptanceCriteria}; original synthetic voice identity, transcript and frame-accurate dialogue sync, rights/provenance`}))];
+      acceptanceCriteria:`${acceptanceCriteria}; ${a.voicePerformance==='synthetic'?'original authorized synthetic voice identity':'licensed recorded voice performance'}, transcript and frame-accurate dialogue sync, rights/provenance`}))];
   const candidate={type:'MediaNeed',version:1,consumer,objective:`Produce ${episodeId} from ${source.id}`,
     openedAt:openedTime.toISOString(),source:{ideaRef:source.originRef,sourceId:source.id,
       ...(source.seedKind!=="source-neutral"?{seedId:source.id}:{}),
@@ -291,6 +341,7 @@ export function compileMicrodramaEpisode({seed, ...options} = {}) {
 export function estimateVideoGeneration({plan, rateCentsPerSecond, attemptsPerShot=1,
   maxBudgetCents, allowedClipSeconds=null}={}) {
   ensure(plan?.type==='MicrodramaProductionProposal', 'compiled production plan required');
+  ensureCinematicProjectionCompatibility(plan);
   ensure(Number.isFinite(rateCentsPerSecond) && rateCentsPerSecond > 0,
     'an observed positive provider rate is required');
   int(attemptsPerShot,'attemptsPerShot',1,100);
@@ -333,6 +384,7 @@ export function projectMicrodramaProductionYield({
 }={}){
  ensure(plan?.type==='MicrodramaProductionProposal'&&Array.isArray(plan.jobs?.video),
   'compiled source-bound microdrama plan is required');
+ ensureCinematicProjectionCompatibility(plan);
  ensure(Array.isArray(providerArtifacts)&&Array.isArray(reviews)&&Array.isArray(privateDrafts),
   'observed provider custody, review and private draft collections are required');
  const own=plan.mediaNeedCandidate?.consumer;
