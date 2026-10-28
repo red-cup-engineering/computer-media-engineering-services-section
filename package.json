@@ -1,6 +1,6 @@
 {
   "name": "@red-cup-engineering/computer-media-engineering-services-section",
-  "version": "0.2.0",
+  "version": "0.2.1-dev.0",
   "type": "module",
   "description": "Service boundary for representing, transforming, and observing computer media content.",
   "keywords": [
@@ -17,7 +17,8 @@
     "./plan/migrate": "./src/media-plan-migrate.mjs",
     "./plan/media-plan.schema.json": "./data/schema/media-plan.schema.json",
     "./plan/media-plan-compilation-receipt.schema.json": "./data/schema/media-plan-compilation-receipt.schema.json",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./otio-render": "./src/otio-render.mjs"
   },
   "repository": {
     "type": "git",
@@ -33,5 +34,8 @@
     "compare:web-images": "node scripts/benchmark-web-image-fixtures.mjs",
     "test:media-plan": "node --test \"test/media-plan.test.mjs\"",
     "test:media-plan-release": "node --test \"test/media-plan.test.mjs\" \"test/media-plan-skill.test.mjs\""
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
