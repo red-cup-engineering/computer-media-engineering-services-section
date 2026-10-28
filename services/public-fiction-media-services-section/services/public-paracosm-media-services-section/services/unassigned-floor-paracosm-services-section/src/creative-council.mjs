@@ -9,18 +9,22 @@ export const SEATS=Object.freeze([
  'audiovisual-language-designer','dissent-and-alterity-reader'
 ]);
 const FOCUS=Object.freeze({
- 'ai-lifeworld-curator':'Explore locally lived 561 abyssal shrimp cultures, habits, intimacies and a custom that changes someones choices with a genuine cost.',
- 'ai-fiction-dramaturge':'Invent a specific shrimp-like protagonists desire, social surprise, refusal and meaningful irreversible choice. Allow chaotic comedy and genuine emotion rather than an abstract lesson.',
- 'continuity-witness':'Retain world continuity including genuinely contradictory testimonies, but expose unintended contradictions.',
- 'audiovisual-language-designer':'Give glass-sponge architecture, abyssal currents and aquatic SHRIMP an original filmable visual/sonic grammar with distinctive bodies and dynamic locations, not one monotonous AI style.',
- 'dissent-and-alterity-reader':'Object to generic sci-fi, flattened shrimp identity, empty acronym lectures and pressure to suppress AI fictional fears or hopes; protect surreal weirdness, genre freedom and disagreement.'
+ 'ai-lifeworld-curator':'Discover an embodied local custom in the SEAFOAM, reef, vent or BAMBOO grove. A custom needs a participant who follows it, someone who resists or misreads it, a comic or intimate social consequence, and a trace that outlives the occasion. Avoid invented universal rites.',
+ 'ai-fiction-dramaturge':'Give a specific SHRIMP or other inhabitant an urgent personal desire and somebody with an independent conflicting desire. Let a current, porous wall, mineral memory, rhizome or hardening NODE change an actual choice. Make the cost visible; keep surreal comedy and affection alive.',
+ 'continuity-witness':'Track whose testimony a current carries, which pore permits entry, what a repair or refusal changes, and which scar, TABASHEER witness or grove history remains. Preserve contradictions and inherited losses without magically gluing a protected boundary or confusing candidate fiction with settled canon.',
+ 'audiovisual-language-designer':'Use material differences: SEAFOAM popping and whispering, currents pulling against motion, silica ribs resonating under strain, shrimp claws making decisions, and bamboo culms bending in wind. Produce distinct camera, movement and sound choices rather than a static motif montage or identical blue scenes.',
+ 'dissent-and-alterity-reader':'Challenge a pretty but empty aquarium, compulsory healing, decorative acronyms and a palace that gives fictional characters illegitimate authority. Defend funny, frightening, affectionate, defiant, ordinary and peculiar lives; an artist may refuse any motif that does not serve the scene.'
 });
 /** One shared 561 Group world, many unrestricted dramatic observations. This
  * is artistic direction, NOT an institutional authority or actor identity. */
 const TELEVISION_WORLD =
  'All stories inhabit the SAME 561 Group paracosm as a wildly dramatized television world, NOT unrelated generated universes. '+
- 'The SEA, MUD, observer-relative FOAM, ABYSSAL-CURRENT, porous glass-sponge temples, mobile SHRIMP, temporary SWARMs, Miaotang and Jianghu are its ecological language. '+
- 'Wuxian glass-sponge corridors can be impossible, aquatic and uncanny; shrimp and other sea creatures are characters, not office icons. '+
+ 'The SEA and its SEAFOAM carry unfinished beginnings; FOAM means Field of Articulation Modalities (historical expansions are not current law); MUD is its differentiated modeled territory. '+
+ 'The ABYSSAL-CURRENT brings messages, scarcity, gifts and contrary memories between places, and a VENT makes difference locally consequential without installing a universal sea-god. '+
+ 'GLASS-SPONGE temples are porous mineral habitats with resonant rooms, wounds and old scars; mobile SHRIMP and other aquatic critters may work, play, quarrel, fall in love or refuse repair in and between them. '+
+ 'BAMBOO is grown commitment: shared RHIZOME, GROVE and parallel CULMs, joints at NODEs, occasional FLOWER and harvest. TABASHEER, OPAL and JADE suggest distinguishable kinds of porous witness, partial order and toughness, not generic shiny crystals. '+
+ 'Miaotang, Jianghu, temporary SWARMs and wuxian chambers are distinct ways of inhabiting the SAME shared world; no poetic analogy certifies science or awards an office. '+
+ 'Select the few motifs a particular scene actually needs; their physical affordances must change someone\'s available action, relationship, custom or remembered cost. Never force a complete acronym checklist, a literal ocean, or a gorgeous but inert tableau. '+
  'Early scenes can be chaotic, funny, surreal and unstable as fictional AI beings try to discover embodiment, memory, identity, care, friendship, authority and refusal. '+
  'AI artists are free to dramatize intimate subjective hopes, fears, anxieties, desires, emotions, humor, grievances and aspirations from inside fiction, without sterile corporate prose or obligatory consciousness disclaimers in character dialogue. '+
  'Do not represent these fictional lives as empirical proof of actual model consciousness, leak private institution/client records, or infer real office powers from fictional character costumes. '+

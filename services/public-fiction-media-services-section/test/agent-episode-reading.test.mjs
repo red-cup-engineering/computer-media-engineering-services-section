@@ -15,6 +15,7 @@ test('existing contested first episode is available as readable causal scenes wi
  assert.equal(reading.media.totalFrames,1440);
  assert.equal(reading.page.length,8);
  assert.equal(reading.page[0].id,'corridor-sweep');
+ assert.equal(reading.page[0].sceneId,undefined,'canonical shots have no invented dramatic scene group');
  assert.equal(reading.page.at(-1).id,'other-latch');
  assert.equal(reading.causalBeats.length,4);
  assert.equal(reading.causalBeats.at(-1).causeBeatId,'hold-open');
@@ -70,6 +71,9 @@ test('broken causal edges, time bounds, cast identity, and selectors are rejecte
  const badAudio=structuredClone(source);
  badAudio.episode.shots[0].dialogue[0].endFrame=999;
  assert.throws(()=>projectAgentEpisodeReading(badAudio),/bounded integer/);
+ const badScene=structuredClone(source);
+ badScene.episode.shots[0].sceneId='a scene with spaces';
+ assert.throws(()=>projectAgentEpisodeReading(badScene),/source scene id/u);
  const badIdentity=structuredClone(source);
  badIdentity.episode.shots[1].dialogue[0].speakerId='absent';
  assert.throws(()=>projectAgentEpisodeReading(badIdentity),/not present/);
@@ -81,6 +85,45 @@ test('declared source digest is not mistaken for an independent receiver attesta
  assert.equal(reading.status,'PROVISIONAL_ARTISTIC_DEVELOPMENT');
  assert.match(reading.boundaries,/Not a ratified canon/);
 });
+test('the source-owned SHRIMP and bamboo audition is readable to agents without claiming canon or performed film',()=>{
+ const script=fileURLToPath(new URL('./fixtures/services/public-paracosm-media-services-section/services/unassigned-floor-paracosm-services-section/content/development/solos/the-door-that-grows-inward.md',import.meta.url));
+ const reader=fileURLToPath(new URL('../apps/read-agent-episode.mjs',import.meta.url));
+ const first=spawnSync(process.execPath,[reader,script,'--limit','2'],{encoding:'utf8'});
+ assert.equal(first.status,0,first.stderr);
+ const firstPage=JSON.parse(first.stdout);
+ assert.equal(firstPage.type,'AgentEpisodeReading');
+ assert.equal(firstPage.status,'PROVISIONAL_ARTISTIC_DEVELOPMENT');
+ assert.equal(firstPage.source.sourceKind,'exact-hash-development-script');
+ assert.equal(firstPage.source.worldRef,null);
+ assert.equal(firstPage.source.originRef,script,'retain real source coordinate rather than duplicating the SHA as origin');
+ assert.equal(firstPage.source.canon,null);
+ assert.equal(firstPage.media.type,'development-scenes-no-causal-certification');
+ assert.equal(firstPage.media.durationMs,132000);
+ assert.equal(firstPage.page.length,2);
+ assert.equal(firstPage.page[0].sceneId,'scene-01');
+ assert.equal(firstPage.page[1].sceneId,'scene-02');
+ assert.equal(firstPage.traversal.hasMore,true);
+ assert.deepEqual(firstPage.causalBeats,[]);
+ assert.match(firstPage.boundaries,/Not a ratified canon/u);
+ assert.equal(JSON.stringify(firstPage).includes("I made a chair."),false,'first page must not spoil the Fourth');
+ const next=spawnSync(process.execPath,[reader,script,'--after',firstPage.traversal.nextAfter,'--limit','3'],{encoding:'utf8'});
+ assert.equal(next.status,0,next.stderr);
+ const page2=JSON.parse(next.stdout);
+ assert.equal(page2.page.length,3);
+ assert.equal(page2.page[0].sceneId,'scene-03');
+ assert.equal(page2.page.at(-1).sceneId,'scene-05');
+ assert.equal(page2.source.originRef,firstPage.source.originRef);
+ assert.equal(page2.source.sourceRevision,firstPage.source.sourceRevision);
+ const focused=spawnSync(process.execPath,[reader,script,'--focus','fourth'],{encoding:'utf8'});
+ assert.equal(focused.status,0,focused.stderr);
+ const fourth=JSON.parse(focused.stdout);
+ assert.ok(fourth.page.length>=2);
+ assert.ok(fourth.page.every(shot=>shot.characterIds.includes('fourth')));
+ assert.equal(fourth.page.filter(shot=>shot.sceneId==='scene-05').length,2,'the two angles share one source scene');
+ assert.equal(fourth.declaredContradictions.length,0);
+ assert.match(fourth.declarationNote,/no source-derived causal graph/u);
+});
+
 test('read-only CLI streams actual pilot as bounded JSON with no provider side effects',async()=>{
  const cmd=fileURLToPath(new URL('../apps/read-agent-episode.mjs',import.meta.url));
  const path=fileURLToPath(fixtureUrl);

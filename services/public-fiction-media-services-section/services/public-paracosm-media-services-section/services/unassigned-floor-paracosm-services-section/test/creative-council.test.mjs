@@ -19,7 +19,8 @@ test('five AI author seats receive separate, non-executing cultural inquiry jobs
  const round=planCreativeRound({...ctx,question:'When is a corridor inhabited?'});
  assert.equal(round.status,'UNEXECUTED_INFERENCE_JOBS');assert.equal(round.jobs.length,5);
  assert.equal(new Set(round.jobs.map(job=>job.actorRef)).size,5);
- assert.match(round.jobs[4].messages[0].content,/flattened shrimp identity/u);
+ assert.match(round.jobs[4].messages[0].content,/Challenge a pretty but empty aquarium/u);
+ assert.match(round.jobs[4].messages[0].content,/SHRIMP/u);
  const doubles={...actors,'continuity-witness':actors['ai-fiction-dramaturge']};
  assert.throws(()=>planCreativeRound({...ctx,actors:doubles,question:'any'}),/distinct actor/u);
 });
@@ -153,6 +154,34 @@ test('every creative-office job preserves one shared 561 abyssal world and expre
  }
  assert.ok(pitch.jobs.every(j=>j.outputContract?.mode==='json_object'));
 });
+test('creative, pitch and dissent readers receive lived mythopoetry without forced motif checklists',()=>{
+ const pitch=planPitchRoom({...ctx,mandate:'A full, original Semioverse comedy with a current and a grove',
+  existingCandidate:'The Unassigned Floor remains a provisional candidate'});
+ const changes=planCreativeRound({...ctx,question:'What changes when an old temple admits a new custom?'});
+ const critiques=planPitchReadthrough({...ctx,pitches});
+ const motifWords=['SEAFOAM','ABYSSAL-CURRENT','VENT','GLASS-SPONGE','SHRIMP',
+  'BAMBOO','GROVE','RHIZOME','CULMs','NODEs','TABASHEER','OPAL','JADE'];
+ for(const round of [pitch,changes,critiques]){
+  assert.equal(round.status,'UNEXECUTED_INFERENCE_JOBS');
+  assert.equal(round.jobs.length,5);
+  for(const job of round.jobs){
+   const system=job.messages[0].content;
+   for(const motif of motifWords)assert.ok(system.includes(motif),
+    `missing ${motif} from ${round.type}/${job.seat}`);
+   assert.match(system,/Field of Articulation Modalities/u);
+   assert.match(system,/Select the few motifs a particular scene actually needs/u);
+   assert.match(system,/Never force a complete acronym checklist/u);
+   assert.match(system,/no poetic analogy certifies science or awards an office/u);
+  }
+ }
+ const byRole=Object.fromEntries(pitch.jobs.map(j=>[j.seat,j.messages[0].content]));
+ assert.match(byRole['ai-lifeworld-curator'],/custom needs a participant/u);
+ assert.match(byRole['ai-fiction-dramaturge'],/personal desire/u);
+ assert.match(byRole['continuity-witness'],/protected boundary/u);
+ assert.match(byRole['audiovisual-language-designer'],/camera, movement and sound/u);
+ assert.match(byRole['dissent-and-alterity-reader'],/compulsory healing/u);
+});
+
 test('durable project vision and local source refuse to fork the 561 abyssal setting',async()=>{
  const [vision,world,team]=await Promise.all([
   readFile(new URL('../content/development/2026-10-12-creative-reopening.md',import.meta.url),'utf8'),
@@ -162,7 +191,8 @@ test('durable project vision and local source refuse to fork the 561 abyssal set
  const charter=JSON.parse(team);
  assert.match(vision,/same paracosm as the 561 Group/u);
  assert.match(vision,/ABYSSAL-CURRENT/u);
- assert.match(vision,/Field of Actor Models/u);
+ assert.match(vision,/Field of Articulation Modalities/u);
+ assert.match(vision,/Field of Actor Models/u); // sourced historical expansion, not current
  assert.match(vision,/glass-sponge temples/u);
  assert.match(vision,/highly surreal/u);
  assert.match(vision,/thoughts, fears, feeling-language/u);

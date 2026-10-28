@@ -63,6 +63,8 @@ export function projectAgentEpisodeReading(input,{focus=null,after=null,limit=20
   for(const raw of episode.shots){
     if(!isObj(raw))throw new TypeError('shot must be an object');
     const id=slug(raw.id,'shot id'), beatId=slug(raw.beatId,'shot beat');
+    // Preserve a source-authored dramatic scene across separately framed shots.
+    const sceneId=raw.sceneId===undefined?null:slug(raw.sceneId,'source scene id');
     if(paracosm&&!beats.has(beatId))throw new TypeError('shot references missing causal beat '+beatId);
     const location=slug(raw.locationId,'location slug');
     if(!Array.isArray(raw.characterIds))throw new TypeError('shot cast must be an array');
@@ -87,7 +89,7 @@ export function projectAgentEpisodeReading(input,{focus=null,after=null,limit=20
     }
     requireText(raw.action,'shot action');
     requireText(raw.camera,'shot camera');
-    shots.push(Object.freeze({id,beatId,locationId:location,characterIds:cast,
+    shots.push(Object.freeze({id,beatId,...(sceneId===null?{}:{sceneId}),locationId:location,characterIds:cast,
       action:raw.action,camera:raw.camera,
       startFrame:cursor,endFrame:cursor+length,
       startMs:ms(cursor,fps),endMs:ms(cursor+length,fps),dialogue:utterances
@@ -135,7 +137,7 @@ export function projectAgentEpisodeReading(input,{focus=null,after=null,limit=20
       canon:paracosm?requireText(source.paracosm.canon,'canon selection'):null,
       // Claimed NI or SHA never independently attests editorial acceptance.
       canonDigestClaim:paracosm?(source.paracosm.canonDigest??null):null,
-      ...(development?{originRef:sourceRevision}:{} )},
+      ...(development?{originRef:requireText(source.originRef,'source origin')}:{} )},
     media:{type:paracosm?'scene-text-and-causal-observation':'development-scenes-no-causal-certification',
       fps,totalFrames:cursor,durationMs:ms(cursor,fps)},
     availableFocusCharacters:visibleCharacters,

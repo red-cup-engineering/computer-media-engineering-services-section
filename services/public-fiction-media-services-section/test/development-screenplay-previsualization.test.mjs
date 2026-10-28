@@ -74,6 +74,36 @@ test('independent rival courier script derives exactly 120s including a silent s
 });
 
 
+test('abyssal SHRIMP and BAMBOO candidate compiles as a noncanonical 132s multi-camera development edition',()=>{
+ const url=new URL('./fixtures/services/public-paracosm-media-services-section/services/unassigned-floor-paracosm-services-section/content/development/solos/the-door-that-grows-inward.md',import.meta.url);
+ const manuscript=readFileSync(url,'utf8');
+ const result=developmentEpisodeFromScreenplay(manuscript,{originRef:'causeway-fiction/development/solos/the-door-that-grows-inward.md'});
+ assert.equal(result.source.type,'DevelopmentScreenplay');
+ assert.equal(result.developmentState,'unapproved-text-audition');
+ assert.equal(result.source.paracosm,undefined);
+ assert.equal(result.source.canon,undefined);
+ assert.equal(result.episode.shots.length,12);
+ assert.equal(result.episode.shots.reduce((n,shot)=>n+shot.frames,0),3960);
+ assert.equal(planProceduralPreview(result,{fps:10,width:180}).totalSeconds,132);
+ assert.deepEqual(result.episode.shots.filter(shot=>shot.sceneId==='scene-05').map(shot=>shot.camera),
+  ["The Fourth's side of the glass","Their two visitors"]);
+ assert.deepEqual(result.episode.shots.filter(shot=>shot.sceneId==='scene-08').map(shot=>shot.camera),
+  ['Hinge from within','Two claws outside']);
+ const utterances=result.episode.shots.flatMap(shot=>shot.dialogue.map(line=>line.text));
+ for(const line of ['I made a chair.','Not yet.','Apparently neither am I.'])
+  assert.ok(utterances.includes(line),'lost crucial character choice or emotional beat: '+line);
+ assert.match(manuscript,/NOT canon/u);
+ assert.match(manuscript,/RHIZOME/u);
+ assert.match(manuscript,/ABYSSAL CURRENT/u);
+ assert.match(manuscript,/The Fourth wants a door/u);
+ const timeGap=manuscript.replace('00:12–00:25 — A shoot in the wrong direction','00:13–00:25 — A shoot in the wrong direction');
+ assert.throws(()=>developmentEpisodeFromScreenplay(timeGap),/noncontiguous or invalid screenplay times/u);
+ const shotGap=manuscript.replace('SHOT 00:55–01:03','SHOT 00:56–01:03');
+ assert.throws(()=>developmentEpisodeFromScreenplay(shotGap),/noncontiguous or invalid camera shots/u);
+ const canonClaim=manuscript.replace('NOT canon;','').replaceAll('not canon','canon');
+ assert.throws(()=>developmentEpisodeFromScreenplay(canonClaim),/only explicitly noncanonical/u);
+});
+
 test('a single dramatic scene can contain three intentional camera framings in a 30-second Short',()=>{
  const manuscript=[
   '# Camera choices are not scene count',
