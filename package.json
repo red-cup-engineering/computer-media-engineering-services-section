@@ -10,7 +10,8 @@
   "scripts": {
     "test": "node --test --test-concurrency=1 test/*.test.mjs \"services/public-fiction-media-services-section/test/media-plan-render.test.mjs\" \"services/public-fiction-media-services-section/test/microdrama-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/media-plan-receiving-regression.test.mjs\" \"services/public-fiction-media-services-section/test/abyssal-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/psychedelic-animatics.test.mjs\" \"services/public-fiction-media-services-section/test/development-screenplay-previsualization.test.mjs\"",
     "check:stock-screen": "node scripts/validate-stock-screen.mjs",
-    "test:media-plan-render": "node --test --test-concurrency=1 \"services/public-fiction-media-services-section/test/media-plan-render.test.mjs\" \"services/public-fiction-media-services-section/test/microdrama-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/media-plan-receiving-regression.test.mjs\" \"services/public-fiction-media-services-section/test/abyssal-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/psychedelic-animatics.test.mjs\" \"services/public-fiction-media-services-section/test/development-screenplay-previsualization.test.mjs\""
+    "test:media-plan-render": "node --test --test-concurrency=1 \"services/public-fiction-media-services-section/test/media-plan-render.test.mjs\" \"services/public-fiction-media-services-section/test/microdrama-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/media-plan-receiving-regression.test.mjs\" \"services/public-fiction-media-services-section/test/abyssal-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/psychedelic-animatics.test.mjs\" \"services/public-fiction-media-services-section/test/development-screenplay-previsualization.test.mjs\"",
+    "test:social-receiving": "node --test test/media-social-receiving.test.mjs test/accepted-media-publication.test.mjs"
   },
   "dependencies": {
     "@red-cup-engineering/organizing": "0.1.0",
@@ -45,7 +46,8 @@
     "./media-from-requirement": "./src/media-from-requirement.mjs",
     "./media-demand-conservation": "./src/media-demand-conservation.mjs",
     "./media-accepted-asset-contract": "./src/media-accepted-asset-contract.mjs",
-    "./media-review-queue-contract": "./src/media-review-queue-contract.mjs"
+    "./media-review-queue-contract": "./src/media-review-queue-contract.mjs",
+    "./media-social-receiving": "./src/media-social-receiving.mjs"
   },
   "bin": {
     "project-youtube-analytics": "./apps/project-youtube-analytics.mjs",

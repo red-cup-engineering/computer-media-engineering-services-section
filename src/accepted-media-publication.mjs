@@ -5,6 +5,7 @@ import * as googleFlow from "@red-cup-engineering/google-flow-services-section/f
 import {
   readMediaAllocationStates, readMediaArtifactReviews, readMediaDemandInbox, recordMediaAllocationState,
 } from "./media-demand-journal.mjs";
+import { qualifyMediaSocialDistributor, qualifyMediaSocialReadback } from './media-social-receiving.mjs';
 
 const TID_ALPHABET="234567abcdefghijklmnopqrstuvwxyz";
 
@@ -40,8 +41,10 @@ export async function publishAcceptedMedia({
     try{distribution=await import("@red-cup-engineering/news-property/distribute");}
     catch{return Object.freeze({type:"AcceptedMediaPublication",status:"blocked",reason:"retry-safe-bluesky-media-upgrade-not-released",published:Object.freeze([])});}
   }
-  if(distribution.BLUESKY_DETERMINISTIC_RKEY!==true || typeof distribution.postBluesky!=="function") {
-    return Object.freeze({type:"AcceptedMediaPublication",status:"blocked",reason:"retry-safe-bluesky-media-upgrade-not-released",published:Object.freeze([])});
+  const socialAdmission=qualifyMediaSocialDistributor(distribution);
+  if(!socialAdmission.ok) {
+    return Object.freeze({type:"AcceptedMediaPublication",status:"blocked",
+      reason:socialAdmission.reason,published:Object.freeze([])});
   }
   if(typeof flow.recordFlowDelivery!=="function" || typeof flow.flowMediaInventory!=="function") {
     return Object.freeze({type:"AcceptedMediaPublication",status:"blocked",reason:"google-flow-delivery-upgrade-not-released",published:Object.freeze([])});
@@ -102,20 +105,66 @@ export async function publishAcceptedMedia({
         image:{bytes,mimeType:review.asset.mimeType,alt:review.asset.altText,sanitized:true,aspectRatio:{width:review.asset.width,height:review.asset.height}},
       }],
     });
-    if(receipt.status!=="ok" || !receipt.uri){obstructions.push({allocation:state.allocation,reason:receipt.reason ?? "Bluesky publication failed"});continue;}
+    if(receipt.status!=="ok" || !receipt.uri || !receipt.cid || !receipt.did ||
+       receipt.uri!=="at://"+receipt.did+"/app.bsky.feed.post/"+rkey){
+      obstructions.push({allocation:state.allocation,
+        reason:receipt.reason??"authenticated-strong-provider-receipt-required"});
+      continue;
+    }
+
+    // A platform createRecord acknowledgement is only a delivered attempt.
+    // Persist the exact record URI in the existing allocation journal so a
+    // crash or unavailable public AppView cannot turn it into public-use.
+    if(state.state==="generated"){
+      try {
+        recordMediaAllocationState({root,...state,state:"delivered",at:now.toISOString(),
+          receipt:receipt.uri,origin:"@causeway-services/public-media-services-section"});
+        state={...state,state:"delivered",recordedAt:now.toISOString()};
+        allocations.set(state.allocation,state);
+      }catch(error){
+        obstructions.push({allocation:state.allocation,
+          reason:"provider-receipt-not-retained: "+error.message});
+        continue;
+      }
+    }
+    let observation;
+    try {
+      observation=await distribution.observeBlueskyPost({
+        uri:receipt.uri,cid:receipt.cid,did:receipt.did,text,url,
+        imageAlt:review.asset.altText,fetch,
+      });
+    }catch(error){
+      observation={status:"held",reason:"public-readback-unavailable: "+error.message};
+    }
+    const qualified=qualifyMediaSocialReadback({receipt,observation,rkey});
+    if(!qualified.ok){
+      obstructions.push({allocation:state.allocation,
+        reason:"public-readback-not-received: "+(observation?.reason??qualified.reason)});
+      continue;
+    }
     const publicAddress=publicBlueskyAddress(handle,rkey);
     const consumer=need.consumer;
-    const destination=`https://bsky.app/profile/${handle}`;
-    const delivery=flow.recordFlowDelivery({
-      completionId:review.completionId,consumer,destination,stage:"public-use",publicAddress,at:now.toISOString(),
-    });
-    if(state.state==="generated"){
-      recordMediaAllocationState({root,...state,state:"delivered",at:now.toISOString(),receipt:delivery.id,origin:"@causeway-services/public-media-services-section"});
-      state={...state,state:"delivered",recordedAt:now.toISOString()};
+    const destination="https://bsky.app/profile/"+handle;
+    let delivery;
+    try{
+      delivery=flow.recordFlowDelivery({
+        completionId:review.completionId,consumer,destination,stage:"public-use",
+        publicAddress,at:now.toISOString(),
+      });
+      if(!delivery || typeof delivery.id!=="string" || !delivery.id){
+        throw new TypeError("media delivery journal returned no durable receipt");
+      }
+      recordMediaAllocationState({root,...state,state:"public-use",at:now.toISOString(),
+        receipt:publicAddress,origin:"@causeway-services/public-media-services-section"});
+    }catch(error){
+      obstructions.push({allocation:state.allocation,
+        reason:"public-use-settlement-not-received: "+error.message});
+      continue;
     }
-    recordMediaAllocationState({root,...state,state:"public-use",at:now.toISOString(),receipt:publicAddress,origin:"@causeway-services/public-media-services-section"});
     state={...state,state:"public-use",recordedAt:now.toISOString()};allocations.set(state.allocation,state);
-    published.push({allocation:state.allocation,mediaNeed:state.mediaNeed,purpose:state.purpose,uri:receipt.uri,publicAddress,recovered:receipt.posts?.[0]?.recovered===true});
+    published.push({allocation:state.allocation,mediaNeed:state.mediaNeed,purpose:state.purpose,
+      uri:receipt.uri,cid:receipt.cid,publicAddress,providerReceipt:delivery.id,
+      publicReadback:qualified.source,recovered:receipt.posts?.[0]?.recovered===true});
   }
-  return Object.freeze({type:"AcceptedMediaPublication",status:"complete",observedAt:now.toISOString(),published:Object.freeze(published),released:Object.freeze(released),obstructions:Object.freeze(obstructions)});
+  return Object.freeze({type:"AcceptedMediaPublication",status:obstructions.length?"held":"complete",observedAt:now.toISOString(),published:Object.freeze(published),released:Object.freeze(released),obstructions:Object.freeze(obstructions)});
 }
