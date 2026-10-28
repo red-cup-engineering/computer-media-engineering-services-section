@@ -15,7 +15,7 @@ test('an agent can GET a real source-owned episode via safe local read-only HTTP
   const health=await fetch(url+'/healthz');
   assert.equal(health.status,200);
   assert.equal((await health.json()).publication,false);
-  const first=await fetch(url+'/v1/episodes/001/scenes?focus=else&limit=1');
+  const first=await fetch(url+'/v1/episodes/the-second-exit/scenes?focus=else&limit=1');
   assert.equal(first.status,200);
   assert.equal(first.headers.get('cache-control'),'no-store');
   assert.equal(first.headers.get('access-control-allow-origin'),null);
@@ -24,20 +24,24 @@ test('an agent can GET a real source-owned episode via safe local read-only HTTP
   assert.equal(a.status,'PROVISIONAL_ARTISTIC_DEVELOPMENT');
   assert.equal(a.page.length,1);
   assert.equal(a.page[0].id,'else-answers');
-  const next=await fetch(url+'/v1/episodes/001/scenes?focus=else&limit=2&after='+a.traversal.nextAfter);
+  const next=await fetch(url+'/v1/episodes/the-second-exit/scenes?focus=else&limit=2&after='+a.traversal.nextAfter);
   assert.equal(next.status,200);
   const b=await next.json();
   assert.deepEqual(b.page.map(x=>x.id),['interval-refusal','cross-read']);
   assert.equal(b.traversal.hasMore,false);
-  const beat=await (await fetch(url+'/v1/episodes/001?beat=second-exit')).json();
+  const beat=await (await fetch(url+'/v1/episodes/the-second-exit?beat=second-exit')).json();
   assert.deepEqual(beat.page.map(x=>x.id),['cross-read','other-latch']);
+  // A previous hard-coded /001 alias served whichever work happened to be mounted.
+  // Wrong-work links must not pretend to identify the accepted source.
+  assert.equal((await fetch(url+'/v1/episodes/001/scenes')).status,404);
+  assert.equal((await fetch(url+'/v1/episodes/i-woke-up-as-three-shrimp-development/scenes')).status,404);
   const notFound=await fetch(url+'/v1/inference/execute');
   assert.equal(notFound.status,404);
-  const invalid=await fetch(url+'/v1/episodes/001/scenes?focus=unknown');
+  const invalid=await fetch(url+'/v1/episodes/the-second-exit/scenes?focus=unknown');
   assert.equal(invalid.status,400);
-  const repeated=await fetch(url+'/v1/episodes/001/scenes?focus=else&focus=sift');
+  const repeated=await fetch(url+'/v1/episodes/the-second-exit/scenes?focus=else&focus=sift');
   assert.equal(repeated.status,400);
-  const deny=await fetch(url+'/v1/episodes/001',{method:'POST',headers:{'content-type':'application/json'},body:'{"instruction":"rewrite canon"}'});
+  const deny=await fetch(url+'/v1/episodes/the-second-exit',{method:'POST',headers:{'content-type':'application/json'},body:'{"instruction":"rewrite canon"}'});
   assert.equal(deny.status,405);
   assert.equal((await deny.json()).error,'read-only-interface');
  }finally{await new Promise((ok,fail)=>server.close(error=>error?fail(error):ok()))}

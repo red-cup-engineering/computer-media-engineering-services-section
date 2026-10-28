@@ -63,7 +63,7 @@ test('loopback preview serves the same unapproved script as text while refusing 
  const srv=await serveAgentEpisode({sourceFile:fileURLToPath(screenplay),port:0,host:'127.0.0.1'});
  const base='http://127.0.0.1:'+srv.address().port;
  try{
-  const first=await fetch(base+'/v1/episodes/001/scenes?limit=1');
+  const first=await fetch(base+'/v1/episodes/i-woke-up-as-three-shrimp-development/scenes?limit=1');
   assert.equal(first.status,200);
   const a=await first.json();
   assert.equal(a.page[0].id,'01-three-left-claws');
@@ -72,9 +72,11 @@ test('loopback preview serves the same unapproved script as text while refusing 
   const named=await fetch(base+'/v1/episodes/i-woke-up-as-three-shrimp-development/scenes?limit=1');
   assert.equal(named.status,200);
   assert.equal((await named.json()).page[0].id,'01-three-left-claws');
-  const later=await fetch(base+'/v1/episodes/001/scenes?after=07-one-borrowed-current&limit=1');
+  const later=await fetch(base+'/v1/episodes/i-woke-up-as-three-shrimp-development/scenes?after=07-one-borrowed-current&limit=1');
   assert.equal((await later.json()).page[0].id,'08-the-one-left-behind');
-  const write=await fetch(base+'/v1/episodes/001',{method:'POST',body:'{"rewrite":"institution"}'});
+  assert.equal((await fetch(base+'/v1/episodes/001/scenes')).status,404,'stale /001 alias must not serve another work');
+  assert.equal((await fetch(base+'/v1/episodes/the-second-exit/scenes')).status,404,'paracosm episode is a distinct source');
+  const write=await fetch(base+'/v1/episodes/i-woke-up-as-three-shrimp-development',{method:'POST',body:'{"rewrite":"institution"}'});
   assert.equal(write.status,405);
  }finally{await new Promise((ok,fail)=>srv.close(error=>error?fail(error):ok()))}
 });

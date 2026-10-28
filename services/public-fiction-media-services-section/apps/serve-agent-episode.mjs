@@ -42,7 +42,9 @@ export function createAgentEpisodeHttpServer(input){
   let path,query;
   try{const url=new URL(req.url,'http://localhost');path=url.pathname;query=url.searchParams;}
   catch{return reply(res,400,{error:'invalid-request-url'});}
-  const validPaths=new Set(['/v1/episodes/001','/v1/episodes/001/scenes',sourceRoute,sourceRoute+'/scenes','/healthz']);
+  // A generic /001 alias misidentifies one source-bound story as another.
+  // The real read-only route is selected only from that exact episode's source.
+  const validPaths=new Set([sourceRoute,sourceRoute+'/scenes','/healthz']);
   if(!validPaths.has(path))return reply(res,404,{error:'unknown-route'});
   if(path==='/healthz')return reply(res,200,{kind:'local-development-source-ready',publication:false});
   for(const key of query.keys())if(!['focus','beat','after','limit'].includes(key)||query.getAll(key).length!==1)
