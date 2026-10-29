@@ -1,5 +1,5 @@
 {
-  "name": "@red-cup-engineering/computer-media-engineering-services-section",
+  "name": "@red-cup-engineering/computer-media-systems-engineering-services-section",
   "version": "0.2.1-dev.1",
   "type": "module",
   "description": "Service boundary for representing, transforming, and observing computer media content.",
@@ -22,7 +22,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/red-cup-engineering/computer-media-engineering-services-section.git"
+    "url": "git+https://github.com/red-cup-engineering/computer-media-systems-engineering-services-section.git"
   },
   "license": "MIT",
   "funding": {
