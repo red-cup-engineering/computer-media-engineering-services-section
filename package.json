@@ -1,6 +1,6 @@
 {
   "name": "@red-cup-engineering/computer-media-engineering-services-section",
-  "version": "0.2.1-dev.0",
+  "version": "0.2.1-dev.1",
   "type": "module",
   "description": "Service boundary for representing, transforming, and observing computer media content.",
   "keywords": [
