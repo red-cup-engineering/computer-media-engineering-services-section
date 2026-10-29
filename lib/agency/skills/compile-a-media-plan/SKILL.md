@@ -1,13 +1,14 @@
 ---
 name: compile-a-media-plan
-description: "Admit one media plan (script, scenes, shots, assets, captions, audio, render target, publication metadata) and compile it, without side effects, into Google Flow queue orders, a deterministic render job and publication metadata, with a receipt a receiving party can audit."
+description: Admit one media plan (script, scenes, shots, assets, captions, audio, render target, publication metadata) and compile it, without side effects, into Google Flow queue orders, a deterministic render job and publication metadata, with a receipt a receiving party can audit.
 type: skill
 skill-closure-kind: operation
 requires-capabilities:
   - office
   - agency-record
----
+id: compile-a-media-plan
 
+---
 # Compile a media plan
 
 **Owner:** media plan steward (proposed office; no incumbent established), under the duty *compile media plans for every renderer*.
