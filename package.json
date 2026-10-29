@@ -1,14 +1,39 @@
 {
   "name": "@red-cup-engineering/computer-media-systems-engineering-services-section",
-  "version": "0.2.1-dev.1",
+  "version": "0.2.1-dev.2",
   "type": "module",
-  "description": "Service boundary for representing, transforming, and observing computer media content.",
+  "description": "Service boundary for representing, transforming, and observing computer media content. Also Causeway Public Media demand, allowance allocation, performance evidence, artifact review, channel formation and public distribution (received from red-cup-engineering/media-engineering-services-section).",
   "keywords": [
     "digital-media",
     "media-processing",
     "multimedia"
   ],
   "exports": {
+    ".": "./src/media-demand-market.mjs",
+    "./media-demand-market": "./src/media-demand-market.mjs",
+    "./package.json": "./package.json",
+    "./media-performance-journal": "./src/media-performance-journal.mjs",
+    "./media-performance-projector": "./src/media-performance-projector.mjs",
+    "./media-demand-journal": "./src/media-demand-journal.mjs",
+    "./media-demand-dispatch": "./src/media-demand-dispatch.mjs",
+    "./media-flow-reconciliation": "./src/media-flow-reconciliation.mjs",
+    "./media-artifact-review-queue": "./src/media-artifact-review-queue.mjs",
+    "./accepted-media-publication": "./src/accepted-media-publication.mjs",
+    "./education-short-market": "./src/education-short-market.mjs",
+    "./media-portfolio-readout": "./src/media-portfolio-readout.mjs",
+    "./media-channel-candidates": "./src/media-channel-candidates.mjs",
+    "./stock-screen": "./src/stock-screen.mjs",
+    "./media-requirement-intake": "./src/media-requirement-intake.mjs",
+    "./media-provider-bid-contract": "./src/media-provider-bid-contract.mjs",
+    "./media-provider-bid-journal": "./src/media-provider-bid-journal.mjs",
+    "./media-need-contract": "./src/media-need-contract.mjs",
+    "./media-provider-opportunities": "./src/media-provider-opportunities.mjs",
+    "./media-from-requirement": "./src/media-from-requirement.mjs",
+    "./media-demand-conservation": "./src/media-demand-conservation.mjs",
+    "./media-accepted-asset-contract": "./src/media-accepted-asset-contract.mjs",
+    "./media-review-queue-contract": "./src/media-review-queue-contract.mjs",
+    "./media-social-receiving": "./src/media-social-receiving.mjs",
+    "./character-media-need": "./src/character-media-need.mjs",
     "./raster": "./src/raster.mjs",
     "./audio": "./src/audio.mjs",
     "./raster/web-variants": "./src/web-raster-variants.mjs",
@@ -17,7 +42,6 @@
     "./plan/migrate": "./src/media-plan-migrate.mjs",
     "./plan/media-plan.schema.json": "./data/schema/media-plan.schema.json",
     "./plan/media-plan-compilation-receipt.schema.json": "./data/schema/media-plan-compilation-receipt.schema.json",
-    "./package.json": "./package.json",
     "./otio-render": "./src/otio-render.mjs"
   },
   "repository": {
@@ -30,12 +54,48 @@
     "url": "https://github.com/561-group/.github/blob/main/TIPS.md"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test --test-concurrency=1 test/*.test.mjs \"services/public-fiction-media-services-section/test/media-plan-render.test.mjs\" \"services/public-fiction-media-services-section/test/microdrama-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/media-plan-receiving-regression.test.mjs\" \"services/public-fiction-media-services-section/test/abyssal-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/psychedelic-animatics.test.mjs\" \"services/public-fiction-media-services-section/test/development-screenplay-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/microdrama-production.test.mjs\" \"services/public-fiction-media-services-section/test/paracosm-video-binding.test.mjs\" \"test/character-media-need.test.mjs\" \"services/public-fiction-media-services-section/test/agent-episode-reading.test.mjs\" \"services/public-fiction-media-services-section/test/development-agent-reader.test.mjs\" \"services/public-fiction-media-services-section/test/serve-agent-episode.test.mjs\"",
+    "check:stock-screen": "node scripts/validate-stock-screen.mjs",
+    "test:media-plan-render": "node --test --test-concurrency=1 \"services/public-fiction-media-services-section/test/media-plan-render.test.mjs\" \"services/public-fiction-media-services-section/test/microdrama-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/media-plan-receiving-regression.test.mjs\" \"services/public-fiction-media-services-section/test/abyssal-previsualization.test.mjs\" \"services/public-fiction-media-services-section/test/psychedelic-animatics.test.mjs\" \"services/public-fiction-media-services-section/test/development-screenplay-previsualization.test.mjs\"",
+    "test:social-receiving": "node --test test/media-social-receiving.test.mjs test/accepted-media-publication.test.mjs",
+    "test:toonsday": "node --test --test-concurrency=1 \"services/public-fiction-media-services-section/test/microdrama-production.test.mjs\" \"services/public-fiction-media-services-section/test/paracosm-video-binding.test.mjs\"",
+    "check:toonsday": "node --check \"services/public-fiction-media-services-section/src/microdrama-production.mjs\" && node --check \"services/public-fiction-media-services-section/src/paracosm-video-binding.mjs\" && node --check \"services/public-fiction-media-services-section/test/microdrama-production.test.mjs\" && node --check \"services/public-fiction-media-services-section/test/paracosm-video-binding.test.mjs\"",
+    "test:character-media": "node --test test/character-media-need.test.mjs",
+    "check:character-media": "node --check src/character-media-need.mjs && node --check test/character-media-need.test.mjs",
+    "test:mythopoetry": "node --test --test-concurrency=1 \"services/public-fiction-media-services-section/test/agent-episode-reading.test.mjs\" \"services/public-fiction-media-services-section/test/development-screenplay-previsualization.test.mjs\"",
+    "check:mythopoetry": "node --check \"services/public-fiction-media-services-section/src/agent-episode-reading.mjs\" && node --check \"services/public-fiction-media-services-section/services/public-paracosm-media-services-section/services/unassigned-floor-paracosm-services-section/src/creative-council.mjs\" && node --check \"services/public-fiction-media-services-section/test/agent-episode-reading.test.mjs\" && node --check \"services/public-fiction-media-services-section/test/development-screenplay-previsualization.test.mjs\" && node --check \"services/public-fiction-media-services-section/services/public-paracosm-media-services-section/services/unassigned-floor-paracosm-services-section/test/creative-council.test.mjs\"",
+    "test:a2a-agent-reader": "node --test --test-concurrency=1 \"services/public-fiction-media-services-section/test/development-agent-reader.test.mjs\" \"services/public-fiction-media-services-section/test/serve-agent-episode.test.mjs\"",
+    "check:a2a-agent-reader": "node --check \"services/public-fiction-media-services-section/apps/serve-agent-episode.mjs\" && node --check \"services/public-fiction-media-services-section/test/development-agent-reader.test.mjs\" && node --check \"services/public-fiction-media-services-section/test/serve-agent-episode.test.mjs\"",
     "compare:web-images": "node scripts/benchmark-web-image-fixtures.mjs",
     "test:media-plan": "node --test \"test/media-plan.test.mjs\"",
     "test:media-plan-release": "node --test \"test/media-plan.test.mjs\" \"test/media-plan-skill.test.mjs\""
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
+  },
+  "bin": {
+    "project-youtube-analytics": "./apps/project-youtube-analytics.mjs",
+    "dispatch-media-demand": "./apps/dispatch-media-demand.mjs",
+    "reconcile-flow-media": "./apps/reconcile-flow-media.mjs",
+    "media-review-queue": "./apps/media-review-queue.mjs",
+    "record-media-review": "./apps/record-media-review.mjs",
+    "publish-accepted-media": "./apps/publish-accepted-media.mjs",
+    "project-education-short-demand": "./apps/project-education-short-demand.mjs",
+    "dispatch-education-short-probe": "./apps/dispatch-education-short-probe.mjs",
+    "reconcile-education-shorts": "./apps/reconcile-education-shorts.mjs",
+    "media-portfolio-readout": "./apps/media-portfolio-readout.mjs",
+    "media-channel-candidates": "./apps/media-channel-candidates.mjs",
+    "project-media-requirement": "./apps/project-media-requirement.mjs",
+    "media-need": "./apps/media-need.mjs",
+    "media-from-requirement": "./apps/media-from-requirement.mjs"
+  },
+  "dependencies": {
+    "@causeway-services/public-education-services-section": "0.0.0",
+    "@red-cup-engineering/google-flow-services-section": "0.1.0",
+    "@red-cup-engineering/json-schema-services-section": "0.3.0",
+    "@red-cup-engineering/json-services-section": "1.0.0",
+    "@red-cup-engineering/news-property": "0.2.0",
+    "@red-cup-engineering/organizing": "0.1.0",
+    "@red-cup-engineering/semiotic-eavt-services-section": "0.1.0"
   }
 }
