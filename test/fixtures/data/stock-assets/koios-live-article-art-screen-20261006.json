@@ -1,0 +1,114 @@
+{
+  "$schema": "../schemas/stock-asset-record.schema.json",
+  "batchId": "koios-live-article-art-screen-20261006",
+  "workRef": "561-group/561-group#16",
+  "screenedAt": "2026-10-06T19:18:43Z",
+  "decision": "rejected",
+  "sharedReasons": [
+    "Exact generator/source revision is not bound to the deployed SVG.",
+    "Stock-licensing rights are not established by the article surface.",
+    "Generative-AI status and source/prompt provenance are unknown."
+  ],
+  "assets": [
+    {
+      "assetId": "koios:apple-tv-renews-imperfect-women-for-season-2",
+      "assetUri": "https://koios.news/assets/article-art/apple-tv-renews-imperfect-women-for-season-2.svg",
+      "receiverSurface": "https://koios.news/posts/apple-tv-renews-imperfect-women-for-season-2/",
+      "contentVersion": "unknown-live-deployment",
+      "rightsStatus": "unknown",
+      "generativeAi": "unknown",
+      "stockStatus": "not-submitted",
+      "screeningState": "rejected"
+    },
+    {
+      "assetId": "koios:cbs-sports-president-to-expand-portfolio-after-warner-bros-discovery",
+      "assetUri": "https://koios.news/assets/article-art/cbs-sports-president-to-expand-portfolio-after-warner-bros-discovery.svg",
+      "receiverSurface": "https://koios.news/posts/cbs-sports-president-to-expand-portfolio-after-warner-bros-discovery/",
+      "contentVersion": "unknown-live-deployment",
+      "rightsStatus": "unknown",
+      "generativeAi": "unknown",
+      "stockStatus": "not-submitted",
+      "screeningState": "rejected"
+    },
+    {
+      "assetId": "koios:digger-s-poor-box-office-performance-raises-concerns",
+      "assetUri": "https://koios.news/assets/article-art/digger-s-poor-box-office-performance-raises-concerns.svg",
+      "receiverSurface": "https://koios.news/posts/digger-s-poor-box-office-performance-raises-concerns/",
+      "contentVersion": "unknown-live-deployment",
+      "rightsStatus": "unknown",
+      "generativeAi": "unknown",
+      "stockStatus": "not-submitted",
+      "screeningState": "rejected"
+    },
+    {
+      "assetId": "koios:former-american-idol-singer-sentenced-to-life-without-parole-for",
+      "assetUri": "https://koios.news/assets/article-art/former-american-idol-singer-sentenced-to-life-without-parole-for.svg",
+      "receiverSurface": "https://koios.news/posts/former-american-idol-singer-sentenced-to-life-without-parole-for/",
+      "contentVersion": "unknown-live-deployment",
+      "rightsStatus": "unknown",
+      "generativeAi": "unknown",
+      "stockStatus": "not-submitted",
+      "screeningState": "rejected"
+    },
+    {
+      "assetId": "koios:george-fenton-oscar-nominated-composer-dies-at-76",
+      "assetUri": "https://koios.news/assets/article-art/george-fenton-oscar-nominated-composer-dies-at-76.svg",
+      "receiverSurface": "https://koios.news/posts/george-fenton-oscar-nominated-composer-dies-at-76/",
+      "contentVersion": "unknown-live-deployment",
+      "rightsStatus": "unknown",
+      "generativeAi": "unknown",
+      "stockStatus": "not-submitted",
+      "screeningState": "rejected"
+    },
+    {
+      "assetId": "koios:james-gunn-s-next-film-and-dcu-franchise-details-revealed",
+      "assetUri": "https://koios.news/assets/article-art/james-gunn-s-next-film-and-dcu-franchise-details-revealed.svg",
+      "receiverSurface": "https://koios.news/posts/james-gunn-s-next-film-and-dcu-franchise-details-revealed/",
+      "contentVersion": "unknown-live-deployment",
+      "rightsStatus": "unknown",
+      "generativeAi": "unknown",
+      "stockStatus": "not-submitted",
+      "screeningState": "rejected"
+    },
+    {
+      "assetId": "koios:jim-bakker-televangelist-dies-at-86",
+      "assetUri": "https://koios.news/assets/article-art/jim-bakker-televangelist-dies-at-86.svg",
+      "receiverSurface": "https://koios.news/posts/jim-bakker-televangelist-dies-at-86/",
+      "contentVersion": "unknown-live-deployment",
+      "rightsStatus": "unknown",
+      "generativeAi": "unknown",
+      "stockStatus": "not-submitted",
+      "screeningState": "rejected"
+    },
+    {
+      "assetId": "koios:mark-mortimer-soap-opera-star-dies-after-battle-with-cancer",
+      "assetUri": "https://koios.news/assets/article-art/mark-mortimer-soap-opera-star-dies-after-battle-with-cancer.svg",
+      "receiverSurface": "https://koios.news/posts/mark-mortimer-soap-opera-star-dies-after-battle-with-cancer/",
+      "contentVersion": "unknown-live-deployment",
+      "rightsStatus": "unknown",
+      "generativeAi": "unknown",
+      "stockStatus": "not-submitted",
+      "screeningState": "rejected"
+    },
+    {
+      "assetId": "koios:reggie-mcfadden-comedian-from-def-comedy-jam-dies-at-57",
+      "assetUri": "https://koios.news/assets/article-art/reggie-mcfadden-comedian-from-def-comedy-jam-dies-at-57.svg",
+      "receiverSurface": "https://koios.news/posts/reggie-mcfadden-comedian-from-def-comedy-jam-dies-at-57/",
+      "contentVersion": "unknown-live-deployment",
+      "rightsStatus": "unknown",
+      "generativeAi": "unknown",
+      "stockStatus": "not-submitted",
+      "screeningState": "rejected"
+    },
+    {
+      "assetId": "koios:slayyyter-announces-wor-t-man-in-america-album-release-date",
+      "assetUri": "https://koios.news/assets/article-art/slayyyter-announces-wor-t-man-in-america-album-release-date.svg",
+      "receiverSurface": "https://koios.news/posts/slayyyter-announces-wor-t-man-in-america-album-release-date/",
+      "contentVersion": "unknown-live-deployment",
+      "rightsStatus": "unknown",
+      "generativeAi": "unknown",
+      "stockStatus": "not-submitted",
+      "screeningState": "rejected"
+    }
+  ]
+}
