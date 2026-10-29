@@ -1,13 +1,14 @@
 ---
 name: run-the-media-plan-cycle
-description: "Runbook for the end-to-end cycle that takes one media plan to Google Flow orders and to a deterministic render, with the checks between steps, the stop points that need a person, and how to roll back."
+description: Runbook for the end-to-end cycle that takes one media plan to Google Flow orders and to a deterministic render, with the checks between steps, the stop points that need a person, and how to roll back.
 type: skill
 skill-closure-kind: process
 requires-capabilities:
   - office
   - agency-record
----
+id: run-the-media-plan-cycle
 
+---
 # Run the media plan cycle (runbook)
 
 > Form gap: there is no runbook form yet (a norm-triggered sequence that composes skills). This
