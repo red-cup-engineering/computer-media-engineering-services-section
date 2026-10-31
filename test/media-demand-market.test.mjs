@@ -114,7 +114,7 @@ test("a capability absent from an allowance is unsupported, never an unknown-pri
   assert.ok(plan.unsupported.some(row=>row.purpose==="short-form-discovery"));
 });
 
-test("receiver readiness is a separate house gate before any artifact can draw capacity",()=>{
+test("receiver readiness is a separate group gate before any artifact can draw capacity",()=>{
   const frontier=mediaDemandFrontier([need()],{now:new Date("2026-10-04T18:00:00Z")});
   assert.ok(frontier.every(row=>row.state==="blocked"));
   assert.ok(frontier.every(row=>row.reason==="receiver-readiness-unsettled"));
